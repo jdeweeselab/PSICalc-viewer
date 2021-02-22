@@ -1,0 +1,6 @@
+{
+    "app_name": "PSICalc-Viewer",
+    "author": "Thomastownsley",
+    "main_module": "src/main/python/ps_app/main.py",
+    "version": "0.0.0"
+}
