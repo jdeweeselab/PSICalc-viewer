@@ -1,0 +1,36 @@
+# PSICalc Viewer 
+
+This is the GUI tree viewing system for the psicalc algorithm. For details on the algorithm, see the psicalc package: https://pypi.org/project/psicalc/ 
+
+### Instructions for building:
+
+This program uses the [fman build system](https://build-system.fman.io/) to compile targets for macOS, Windows, and Linux operating systems. 
+In order to address the pain points associated with compiling python applicatons, the build system utilizes a combination of Qt and PyInstaller to 
+build for the desired target. 
+
+### Setup
+
+Fman build system requires python 3.6, so you need to switch to that version if you don't have it already:
+```
+brew install pyenv
+PYTHON_CONFIGURE_OPTS="--enable-framework" pyenv install 3.6-dev
+pyenv local 3.6-dev
+eval "$(pyenv init -)"
+```
+
+Create a virtual environment within the psi-calc directory root and activate it:
+```
+python -m venv venv
+source venv/bin/activate
+```
+
+Install python dependencies:
+```
+pip install -r requirements.txt
+```
+Install graphviz binaries from source:
+[Graphviz Installation instructions](https://github.com/mandosoft/psi-calc/wiki/Graphviz-Installation)
+
+From there, run a test build using ```fbs run```
+
+Freeze the application with ```fbs freeze``` and create the installer .dmg with ```fbs installer```
