@@ -2,7 +2,6 @@ APP_NAME="PSICalc-Viewer.app"
 DMG_NAME="PSICalc-Viewer.dmg"
 
 fbs freeze
-./target/$APP_NAME/Contents/Resources/lib/dot -v
 
 echo "*** Code Signing Executables ***"
 
@@ -16,7 +15,8 @@ do
   --preserve-metadata=identifier,entitlements,requirements,runtime \
   --timestamp $LIB
 done
-
+#--entitlements entitlements.plist \
+#--entitlements entitlements.plist \
 echo "*** LEVEL TWO ***"
 LIBS=$(find target/$APP_NAME/Contents/Resources/lib/* -depth)
 for LIB in $LIBS
@@ -50,7 +50,9 @@ codesign -s "Developer ID Application: Thomas Townsley (3746QNA6LZ)" \
 --preserve-metadata=identifier,entitlements,requirements,runtime \
 --timestamp ./target/$DMG_NAME
 
-#xcrun altool --notarize-app --verbose --primary-bundle-id "com.thomastownsley.testfbs2" \
-#--username "thomas@mandosoft.dev" --password "@keychain:AC_PASSWORD" \
-#--file ./target/$DMG_NAME
+xcrun altool --notarize-app --verbose --primary-bundle-id "com.thomastownsley.pcviewer" \
+--username "thomas@mandosoft.dev" --password "@keychain:AC_PASSWORD" \
+--file ./target/$DMG_NAME
 
+#xcrun stapler staple "PSICalc-Viewer.app"
+#xcrun stapler staple "PSICalc-Viewer.dmg"

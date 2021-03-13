@@ -34,3 +34,14 @@ Install graphviz binaries from source:
 From there, run a test build using ```fbs run```
 
 Freeze the application with ```fbs freeze``` and create the installer .dmg with ```fbs installer```
+
+###Troubleshooting
+
+####Virtual Environment Setup
+A common occurrence is for the 3.6-dev virtual environment creation to stop working due to 
+too many symbolic links. This can be fixed by completely uninstalling pyenv:
+
+```
+rm -rf $(pyenv root)
+brew uninstall pyenv
+```
