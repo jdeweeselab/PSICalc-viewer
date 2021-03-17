@@ -131,6 +131,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             attrs[node] = {'node': node, 'parent': False, 'color': None,
                            'sr_mode': None, 'prime_cluster': False}
         nx.set_node_attributes(G, attrs)
+
         n_order = 1
         while n_order < max_len:
 
@@ -148,7 +149,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                     G.nodes[i]['prime_cluster'] = True
                     G.nodes[i]['color'] = 'purple'
                 else:
-                    G.nodes[i]['color'] = '#00000000'  # everything else is a clear color
+                    G.nodes[i]['color'] = 'red'  # everything else is a clear color
 
                 # Checks for supersets
                 if G.nodes[i]['parent'] is not True:
@@ -212,8 +213,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ax.xaxis.set_label_coords(0.5, 1.12)
         self.ax.format_coord = lambda x, y: ""
         node_colors = [G.nodes[i]['color'] for i in G.nodes]
-        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_color='red', edgecolors=node_colors)
-        #nx.draw_networkx_labels(G, pos=pos, ax=self.ax, font_color='k', font_weight='bold', font_size=font_size)
+        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=105,
+                                       node_color=node_colors, edgecolors=node_colors)
 
         # Draw edges
         edges_p = [e for e in G.edges if G.edges[e]["subset"]]
@@ -235,7 +236,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             node = idx_to_node_dict[node_idx]
             xy = pos[node]
             annot.xy = xy
-            node_attr = {'node': node}
+            node_attr = {'cluster': node}
             node_attr.update(G.nodes[node])
             text = '\n'.join(f'{k}: {v}' for k, v in node_attr.items())
             annot.set_text(text)
