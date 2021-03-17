@@ -12,6 +12,7 @@ from ps_app.views.csv_view import ClusterData
 import csv
 import numpy as np
 import networkx as nx
+import mpld3
 from networkx.drawing.nx_agraph import graphviz_layout
 from matplotlib import pyplot as plt
 from matplotlib import patches as mpatches
@@ -124,13 +125,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         max_len = max([len(s[0]) for s in tree_list])
 
         # Create graph and set default attributes for nodes
+        attrs = {}
         G = nx.Graph()
-        for i in G.nodes:
-            G.nodes[i]['parent'] = False
-            G.nodes[i]['color'] = None
-            G.nodes[i]['sr_mode'] = None
-            G.nodes[i]['prime_cluster'] = False
-
+        for node in G.nodes:
+            attrs[node] = {'node': node, 'parent': False, 'color': None,
+                           'sr_mode': None, 'prime_cluster': False}
+        nx.set_node_attributes(G, attrs)
         n_order = 1
         while n_order < max_len:
 
@@ -212,15 +212,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ax.xaxis.set_label_coords(0.5, 1.12)
         self.ax.format_coord = lambda x, y: ""
         node_colors = [G.nodes[i]['color'] for i in G.nodes]
-
-        # Draw nodes
-        rx, ry = .6, .25
-        area = rx * ry * np.pi
-        theta = np.arange(0, 2 * np.pi + 0.01, 0.1)
-        verts = np.column_stack([rx / area * np.cos(theta), ry / area * np.sin(theta)])
-        nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_color='#00000000', edgecolors=node_colors, node_shape=verts,
-                               node_size=1000)
-        nx.draw_networkx_labels(G, pos=pos, ax=self.ax, font_color='k', font_weight='bold', font_size=font_size)
+        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_color='red', edgecolors=node_colors)
+        #nx.draw_networkx_labels(G, pos=pos, ax=self.ax, font_color='k', font_weight='bold', font_size=font_size)
 
         # Draw edges
         edges_p = [e for e in G.edges if G.edges[e]["subset"]]
@@ -228,6 +221,39 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='solid', edgelist=edges_p, edge_color='k', alpha=.5)
         nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='dashed', edge_color='#DB7093', edgelist=edges_s, width=1.5,
                                alpha=.5)
+        annot = self.ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points",
+                            bbox=dict(boxstyle="round", fc="w"),
+                            arrowprops=dict(arrowstyle="->"))
+        annot.set_visible(False)
+
+        idx_to_node_dict = {}
+        for idx, node in enumerate(G.nodes):
+            idx_to_node_dict[idx] = node
+
+        def update_annot(ind):
+            node_idx = ind["ind"][0]
+            node = idx_to_node_dict[node_idx]
+            xy = pos[node]
+            annot.xy = xy
+            node_attr = {'node': node}
+            node_attr.update(G.nodes[node])
+            text = '\n'.join(f'{k}: {v}' for k, v in node_attr.items())
+            annot.set_text(text)
+
+        def hover(event):
+            vis = annot.get_visible()
+            if event.inaxes == self.ax:
+                cont, ind = nodes.contains(event)
+                if cont:
+                    update_annot(ind)
+                    annot.set_visible(True)
+                    self.fig.canvas.draw_idle()
+                else:
+                    if vis:
+                        annot.set_visible(False)
+                        self.fig.canvas.draw_idle()
+
+        self.fig.canvas.mpl_connect("motion_notify_event", hover)
 
         plt.grid(True, axis='y')
 
