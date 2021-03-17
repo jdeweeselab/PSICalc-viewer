@@ -212,9 +212,9 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ax.set_xlabel('Site location in the Multiple Sequence Alignment', fontsize=8, weight='bold')
         self.ax.xaxis.set_label_coords(0.5, 1.12)
         self.ax.format_coord = lambda x, y: ""
-        node_colors = [G.nodes[i]['color'] for i in G.nodes]
+        node_colors = [G.nodes[i]['sr_mode'] for i in G.nodes]
         nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=105,
-                                       node_color=node_colors, edgecolors=node_colors)
+                                       node_color=node_colors, vmin=0.0, vmax=1.0, cmap=plt.cm.get_cmap('rainbow'))
 
         # Draw edges
         edges_p = [e for e in G.edges if G.edges[e]["subset"]]
@@ -257,16 +257,18 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.fig.canvas.mpl_connect("motion_notify_event", hover)
 
         plt.grid(True, axis='y')
+        plt.colorbar(nodes,
+                     orientation='horizontal',
+                     label='SR(mode) Value',
+                     shrink=0.50,
+                     pad=0.08
+                     )
 
         y_ticks = [k for k, v in ytick_list]
         self.ax.yaxis.set_ticks(y_ticks)
         self.ax.yaxis.set_ticklabels(ytick_labels, visible=True)
         self.ax.xaxis.set_ticks(xtick_list)
         self.ax.xaxis.set_ticklabels(xtick_labels, visible=True)
-        c = mpatches.Circle((0.5, 0.5), 0.25, facecolor="white",
-                            edgecolor="purple", linewidth=3)
-        self.ax.legend([c], ["High Sr Mode Cluster"], loc='upper center', bbox_to_anchor=(0.5, -0.05),
-                  fancybox=True, shadow=True, ncol=2, handler_map={mpatches.Circle: HandlerEllipse()})
 
         for i, k in enumerate(self.ax.xaxis.get_ticklabels()):
             label = self.ax.xaxis.get_ticklabels()[i]
