@@ -10,23 +10,9 @@ from matplotlib.legend_handler import HandlerPatch
 from ps_app.views.csv_view import ClusterData
 
 import csv
-import numpy as np
 import networkx as nx
-import mpld3
 from networkx.drawing.nx_agraph import graphviz_layout
 from matplotlib import pyplot as plt
-from matplotlib import patches as mpatches
-
-
-class HandlerEllipse(HandlerPatch):
-    def create_artists(self, legend, orig_handle,
-                       xdescent, ydescent, width, height, fontsize, trans):
-        center = 0.5 * width - 0.5 * xdescent, 0.5 * height - 0.5 * ydescent
-        p = mpatches.Ellipse(xy=center, width=width + xdescent,
-                             height=height + ydescent)
-        self.update_prop(p, orig_handle, legend)
-        p.set_transform(trans)
-        return [p]
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):
@@ -111,12 +97,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         """
         This is the main tree drawing method
         """
-        prime_cluster = .33
-        font_size = 6
-        # TODO: Refactor this area
         data = self.lines
-
-        # TODO fix this using split or other method
         data = [e for e in data if len(e) != 0]
         values = [entry for entry in data if float(entry[1]) >= cutoff]  # modified variable
         tree_list = [(entry[0].strip('()'), entry[1]) for entry in values]
@@ -128,8 +109,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         attrs = {}
         G = nx.Graph()
         for node in G.nodes:
-            attrs[node] = {'node': node, 'parent': False, 'color': None,
-                           'sr_mode': None, 'prime_cluster': False}
+            attrs[node] = {'node': node, 'parent': False, 'sr_mode': None}
         nx.set_node_attributes(G, attrs)
 
         n_order = 1
@@ -145,13 +125,6 @@ class ApplicationWindow(QtWidgets.QMainWindow):
 
             # Draw edges between nodes
             for i in G.nodes:
-                if G.nodes[i]['sr_mode'] >= prime_cluster:  # set prime cluster value
-                    G.nodes[i]['prime_cluster'] = True
-                    G.nodes[i]['color'] = 'purple'
-                else:
-                    G.nodes[i]['color'] = 'red'  # everything else is a clear color
-
-                # Checks for supersets
                 if G.nodes[i]['parent'] is not True:
                     for j in G.nodes:
                         if i != j and set(i).issubset(set(j)):
@@ -213,7 +186,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ax.xaxis.set_label_coords(0.5, 1.12)
         self.ax.format_coord = lambda x, y: ""
         node_colors = [G.nodes[i]['sr_mode'] for i in G.nodes]
-        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=105,
+        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=90,
                                        node_color=node_colors, vmin=0.0, vmax=1.0, cmap=plt.cm.get_cmap('rainbow'))
 
         # Draw edges
