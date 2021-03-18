@@ -121,7 +121,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             next_set = sorted(list(set(next_set)))
 
             for i in next_set:
-                G.add_node(i[0], color=None, parent=False, sr_mode=i[1], prime_cluster=False)
+                G.add_node(i[0], parent=False, sr_mode=i[1])
 
             # Draw edges between nodes
             for i in G.nodes:
@@ -185,11 +185,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ax.set_xlabel('Site location in the Multiple Sequence Alignment', fontsize=8, weight='bold')
         self.ax.xaxis.set_label_coords(0.5, 1.12)
         self.ax.format_coord = lambda x, y: ""
-        node_colors = [G.nodes[i]['sr_mode'] for i in G.nodes]
-        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=90,
-                                       node_color=node_colors, vmin=0.0, vmax=1.0, cmap=plt.cm.get_cmap('rainbow'))
 
-        # Draw edges
+        node_colors = [G.nodes[i]['sr_mode'] for i in G.nodes]
+        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=80,
+                                       node_color=node_colors, vmin=0.0, vmax=1.0, cmap=plt.cm.get_cmap('rainbow'))
         edges_p = [e for e in G.edges if G.edges[e]["subset"]]
         edges_s = [e for e in G.edges if not G.edges[e]["subset"]]
         nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='solid', edgelist=edges_p, edge_color='k', alpha=.5)
