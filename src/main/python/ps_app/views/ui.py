@@ -196,7 +196,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.pushButton_3.setText(_translate("MainWindow", "Export MSA"))
         self.pushButton_3.clicked.connect(self.export_to_csv)
 
-        self.pushButton_4.setText(_translate("MainWindow", "Submit and Run"))
+        self.pushButton_4.setText(_translate("MainWindow", "Submit"))
         self.pushButton_4.clicked.connect(self.submit_and_run)
 
         self.label_6.setText(_translate("MainWindow", "0"))
@@ -325,14 +325,23 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
     # noinspection PyCallByClass
     def submit_and_run(self):
-        self.pushButton_4.setEnabled(False)
+        self.pushButton_4.clicked.connect(self.stop_process)
+        self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+        self.pushButton_4.setText("Stop")
+
         self.spread = self.spinBox_2.value()
         # long running process
         self.df = self.df.replace({None: '-'})
         self.thread.rend(self.spread, self.df)
 
+    def stop_process(self):
+        exit()
+
     def returnUi(self):
-        self.pushButton_4.setEnabled(True)
+        self.pushButton_4.clicked.connect(self.submit_and_run)
+        self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.pushButton_4.setText("Submit")
+
         self.w = ApplicationWindow(self.cluster_map, self.csv_img)
         self.w.show()
 
