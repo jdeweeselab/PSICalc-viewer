@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtWidgets, QtGui
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QStyle
 from ps_app.views.tree_view import ApplicationWindow
 import gc
 import sys
@@ -149,7 +149,9 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.pushButton_3 = QtWidgets.QPushButton(self.widget_2)
         self.pushButton_3.setGeometry(QtCore.QRect(20, 540, 151, 31))
         self.pushButton_3.setObjectName("pushButton_3")
+
         self.pushButton_4 = QtWidgets.QPushButton(self.widget_2)
+        self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.pushButton_4.setGeometry(QtCore.QRect(180, 540, 151, 31))
         self.pushButton_4.setObjectName("pushButton_4")
 
