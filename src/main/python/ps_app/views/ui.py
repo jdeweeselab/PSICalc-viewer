@@ -145,6 +145,8 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.lineEdit = QtWidgets.QLineEdit(self.widget_2)
         self.lineEdit.setGeometry(QtCore.QRect(20, 90, 301, 21))
         self.lineEdit.setObjectName("lineEdit")
+        self.lineEdit.setStyleSheet("border: 1px solid; border-color: silver;"
+                                    " border-radius:3px; background-color: palette(base); ")
 
         self.pushButton_3 = QtWidgets.QPushButton(self.widget_2)
         self.pushButton_3.setGeometry(QtCore.QRect(20, 540, 151, 31))
