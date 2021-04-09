@@ -6,8 +6,6 @@ import gc
 import sys
 import psicalc as pc
 import pandas as pd
-import numpy as np
-from multiprocessing import Pool
 
 
 class EmittingStream(QtCore.QObject):
@@ -26,14 +24,18 @@ class Worker(QtCore.QThread):
         self.exiting = False
         self.cluster_data = dict()
 
-    def __del__(self):
-        self.exiting = True
-        self.wait()
-
     def rend(self, spread, df):
         self.spread = spread
         self.df = df
         self.start()
+
+    def halt(self):
+        dict_state = pc.return_dict_state()
+        return dict_state
+
+    def kill(self):
+        self.terminate()
+        self.wait(10)
 
     def run(self):
         self.cluster_data = pc.find_clusters(self.spread, self.df)
@@ -330,14 +332,16 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.pushButton_4.clicked.connect(self.stop_process)
         self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
         self.pushButton_4.setText("Stop")
-
         self.spread = self.spinBox_2.value()
         # long running process
         self.df = self.df.replace({None: '-'})
         self.thread.rend(self.spread, self.df)
 
     def stop_process(self):
-        exit()
+        halted_dict = self.thread.halt()
+        self.thread.kill()
+        print(halted_dict)
+
 
     def returnUi(self):
         self.pushButton_4.clicked.connect(self.submit_and_run)
