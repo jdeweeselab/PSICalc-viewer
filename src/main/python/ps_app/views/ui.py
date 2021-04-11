@@ -33,10 +33,6 @@ class Worker(QtCore.QThread):
         dict_state = pc.return_dict_state()
         return dict_state
 
-    def kill(self):
-        self.terminate()
-        self.wait(10)
-
     def run(self):
         self.cluster_data = pc.find_clusters(self.spread, self.df)
         self.clusterSignal.emit(self.cluster_data)
@@ -338,10 +334,11 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.thread.rend(self.spread, self.df)
 
     def stop_process(self):
-        halted_dict = self.thread.halt()
-        self.thread.kill()
-        print(halted_dict)
-
+        """Halts the current process, returns the dictionary as is,
+        quits, then waits for the thread to fully finish."""
+        self.cluster_map = self.thread.halt()
+        self.thread.quit()
+        self.thread.wait()
 
     def returnUi(self):
         self.pushButton_4.clicked.connect(self.submit_and_run)
