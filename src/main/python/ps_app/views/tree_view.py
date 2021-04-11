@@ -11,6 +11,7 @@ from ps_app.views.csv_view import ClusterData
 
 import csv
 import networkx as nx
+import numpy as np
 from networkx.drawing.nx_agraph import graphviz_layout
 from matplotlib import pyplot as plt
 
@@ -92,6 +93,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         final_str = ', '.join(map(str, final))
         final_str = ''.join(('(', final_str, ')'))
         return final_str
+
+    @staticmethod
+    def calculate_node_size(x):
+        return np.rint(90 / (np.log10(x)))
 
     def draw_tree(self, cutoff):
         """
@@ -187,11 +192,12 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ax.format_coord = lambda x, y: ""
 
         node_colors = [G.nodes[i]['sr_mode'] for i in G.nodes]
-        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=80,
+        node_scale_size = self.calculate_node_size(G.number_of_nodes())
+        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=node_scale_size,
                                        node_color=node_colors, vmin=0.0, vmax=1.0, cmap=plt.cm.get_cmap('rainbow'))
         edges_p = [e for e in G.edges if G.edges[e]["subset"]]
         edges_s = [e for e in G.edges if not G.edges[e]["subset"]]
-        nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='solid', edgelist=edges_p, edge_color='k', alpha=.5)
+        nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='solid', edgelist=edges_p, edge_color='blue', alpha=.5)
         nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='dashed', edge_color='#DB7093', edgelist=edges_s, width=1.5,
                                alpha=.5)
         annot = self.ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points",
