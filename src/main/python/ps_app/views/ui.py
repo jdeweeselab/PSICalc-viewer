@@ -16,6 +16,10 @@ class EmittingStream(QtCore.QObject):
 
 
 class Worker(QtCore.QThread):
+    """The worker thread has signals for emitting
+    output in realtime and a return object, which is
+    the dictionary returned by psicalc. """
+
     outputSignal = QtCore.pyqtSignal(str)
     clusterSignal = QtCore.pyqtSignal(object)
 
@@ -24,11 +28,7 @@ class Worker(QtCore.QThread):
         self.exiting = False
         self.setTerminationEnabled()
         self.cluster_data = dict()
-
-    def rend(self, spread, df):
-        self.spread = spread
-        self.df = df
-        self.start()
+        self.spread, self.df = None, None
 
     def get_state(self):
         dict_state = pc.return_dict_state()
@@ -38,12 +38,17 @@ class Worker(QtCore.QThread):
         self.cluster_data = pc.find_clusters(self.spread, self.df)
         self.clusterSignal.emit(self.cluster_data)
 
+    def start_proc(self, spread, df):
+        self.spread = spread
+        self.df = df
+        self.start()
+
 
 class Ui_MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, csv_img):
         super().__init__()
-        self.setObjectName("PsiCalc Viewer")
+        self.setObjectName("PSICalc Viewer")
         self.resize(960, 639)
         self.exiting = False
         sys.stdout = EmittingStream(textWritten=self.normalOutputWritten)
@@ -333,7 +338,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.spread = self.spinBox_2.value()
         # long running process
         self.df = self.df.replace({None: '-'})
-        self.thread.rend(self.spread, self.df)
+        self.thread.start_proc(self.spread, self.df)
 
     def stop_process(self):
         """Halts the current process, returns the dictionary as is,
@@ -344,10 +349,11 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.pushButton_4.setText("Submit")
         self.pushButton_4.clicked.connect(self.submit_and_run)
 
+    def return_dict(self, r_dict):
+        self.cluster_map = r_dict
+
     def returnUi(self):
         self.w = ApplicationWindow(self.cluster_map, self.csv_img)
         self.w.show()
 
-    def return_dict(self, r_dict):
-        self.cluster_map = r_dict
 
