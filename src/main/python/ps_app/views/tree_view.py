@@ -209,7 +209,8 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                                  arrowprops=dict(arrowstyle="->"))
         annot.set_visible(False)
         flip_annot.set_visible(False)
-        max_node_pos = np.unique(sorted([v[0] for k, v in pos.items()]))[-2]
+        avg_node_pos = np.mean(np.unique(
+            sorted([v[0] for k, v in pos.items()])))
 
         idx_to_node_dict = {}
         for idx, node in enumerate(G.nodes):
@@ -221,7 +222,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
             node = idx_to_node_dict[node_idx]
             xy = pos[node]
             annot.xy = xy
-            if xy[0] >= max_node_pos:
+            if xy[0] >= avg_node_pos:
                 flip = True
                 flip_annot.xy = xy
             node_attr = {'cluster': node}
