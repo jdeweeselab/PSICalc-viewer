@@ -8,9 +8,11 @@ else:
         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.legend_handler import HandlerPatch
 from ps_app.views.csv_view import ClusterData
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import csv
 import networkx as nx
+import numpy as np
 from networkx.drawing.nx_agraph import graphviz_layout
 from matplotlib import pyplot as plt
 
@@ -92,6 +94,10 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         final_str = ', '.join(map(str, final))
         final_str = ''.join(('(', final_str, ')'))
         return final_str
+
+    @staticmethod
+    def calculate_node_size(x):
+        return np.rint(90 / (np.log10(x)))
 
     def draw_tree(self, cutoff):
         """
@@ -187,54 +193,79 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ax.format_coord = lambda x, y: ""
 
         node_colors = [G.nodes[i]['sr_mode'] for i in G.nodes]
-        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=80,
+        node_scale_size = self.calculate_node_size(G.number_of_nodes())
+        nodes = nx.draw_networkx_nodes(G, pos=pos, ax=self.ax, node_size=node_scale_size,
                                        node_color=node_colors, vmin=0.0, vmax=1.0, cmap=plt.cm.get_cmap('rainbow'))
         edges_p = [e for e in G.edges if G.edges[e]["subset"]]
         edges_s = [e for e in G.edges if not G.edges[e]["subset"]]
-        nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='solid', edgelist=edges_p, edge_color='k', alpha=.5)
+        nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='solid', edgelist=edges_p, edge_color='blue', alpha=.5)
         nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='dashed', edge_color='#DB7093', edgelist=edges_s, width=1.5,
                                alpha=.5)
         annot = self.ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points",
                             bbox=dict(boxstyle="round", fc="w"),
                             arrowprops=dict(arrowstyle="->"))
+        flip_annot = self.ax.annotate("", xy=(0, 0), xytext=(-160, 20), textcoords="offset points",
+                                 bbox=dict(boxstyle="round", fc="w"),
+                                 arrowprops=dict(arrowstyle="->"))
         annot.set_visible(False)
+        flip_annot.set_visible(False)
+        avg_node_pos = np.mean(np.unique(
+            sorted([v[0] for k, v in pos.items()])))
 
         idx_to_node_dict = {}
         for idx, node in enumerate(G.nodes):
             idx_to_node_dict[idx] = node
 
         def update_annot(ind):
+            flip = False
             node_idx = ind["ind"][0]
             node = idx_to_node_dict[node_idx]
             xy = pos[node]
             annot.xy = xy
+            if xy[0] >= avg_node_pos:
+                flip = True
+                flip_annot.xy = xy
             node_attr = {'cluster': node}
             node_attr.update(G.nodes[node])
-            text = '\n'.join(f'{k}: {v}' for k, v in node_attr.items())
-            annot.set_text(text)
+            text = '\n'.join(f'{k}: {v}' for k, v in node_attr.items()
+                             if k != "parent")
+            if flip:
+                flip_annot.set_text(text)
+            else:
+                annot.set_text(text)
+
+            return flip
 
         def hover(event):
-            vis = annot.get_visible()
+            vis1, vis2 = annot.get_visible(), flip_annot.get_visible()
             if event.inaxes == self.ax:
                 cont, ind = nodes.contains(event)
                 if cont:
-                    update_annot(ind)
-                    annot.set_visible(True)
+                    decide_pos = update_annot(ind)
+                    if decide_pos:
+                        flip_annot.set_visible(True)
+                    else:
+                        annot.set_visible(True)
                     self.fig.canvas.draw_idle()
                 else:
-                    if vis:
+                    if vis1 or vis2:
                         annot.set_visible(False)
+                        flip_annot.set_visible(False)
                         self.fig.canvas.draw_idle()
 
         self.fig.canvas.mpl_connect("motion_notify_event", hover)
 
         plt.grid(True, axis='y')
-        plt.colorbar(nodes,
-                     orientation='horizontal',
-                     label='SR(mode) Value',
-                     shrink=0.50,
-                     pad=0.08
+
+        divider = make_axes_locatable(plt.gca())
+        cax = divider.append_axes("right", "2%", pad="3%")
+        cb = plt.colorbar(nodes,
+                     cax=cax,
+                     orientation='vertical',
+                     shrink=0.05,
+                     pad=0.05
                      )
+        cb.ax.set_title('SR(mode)', fontsize=8, weight='bold')
 
         y_ticks = [k for k, v in ytick_list]
         self.ax.yaxis.set_ticks(y_ticks)

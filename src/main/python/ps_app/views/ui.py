@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 from PyQt5 import QtCore, QtWidgets, QtGui
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QStyle
 from ps_app.views.tree_view import ApplicationWindow
 import gc
 import sys
 import psicalc as pc
 import pandas as pd
-import numpy as np
-from multiprocessing import Pool
 
 
 class EmittingStream(QtCore.QObject):
@@ -18,34 +16,41 @@ class EmittingStream(QtCore.QObject):
 
 
 class Worker(QtCore.QThread):
+    """The worker thread has signals for emitting
+    output in realtime and a return object, which is
+    the dictionary returned by psicalc. """
+
     outputSignal = QtCore.pyqtSignal(str)
     clusterSignal = QtCore.pyqtSignal(object)
 
     def __init__(self, parent = None):
         QtCore.QThread.__init__(self, parent)
         self.exiting = False
+        self.setTerminationEnabled()
         self.cluster_data = dict()
+        self.spread, self.df = None, None
 
-    def __del__(self):
-        self.exiting = True
-        self.wait()
-
-    def rend(self, spread, df):
-        self.spread = spread
-        self.df = df
-        self.start()
+    def get_state(self):
+        pc.return_dict_state()
+        return
 
     def run(self):
         self.cluster_data = pc.find_clusters(self.spread, self.df)
         self.clusterSignal.emit(self.cluster_data)
+
+    def start_proc(self, spread, df):
+        self.spread = spread
+        self.df = df
+        self.start()
 
 
 class Ui_MainWindow(QtWidgets.QMainWindow):
 
     def __init__(self, csv_img):
         super().__init__()
-        self.setObjectName("PsiCalc Viewer")
+        self.setObjectName("PSICalc Viewer")
         self.resize(960, 639)
+        self.exiting = False
         sys.stdout = EmittingStream(textWritten=self.normalOutputWritten)
         sys.stderr = EmittingStream(textWritten=self.normalOutputWritten)
         self.thread = Worker()
@@ -145,11 +150,15 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.lineEdit = QtWidgets.QLineEdit(self.widget_2)
         self.lineEdit.setGeometry(QtCore.QRect(20, 90, 301, 21))
         self.lineEdit.setObjectName("lineEdit")
+        self.lineEdit.setStyleSheet("border: 1px solid; border-color: silver;"
+                                    " border-radius:3px; background-color: palette(base); ")
 
         self.pushButton_3 = QtWidgets.QPushButton(self.widget_2)
         self.pushButton_3.setGeometry(QtCore.QRect(20, 540, 151, 31))
         self.pushButton_3.setObjectName("pushButton_3")
+
         self.pushButton_4 = QtWidgets.QPushButton(self.widget_2)
+        self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.pushButton_4.setGeometry(QtCore.QRect(180, 540, 151, 31))
         self.pushButton_4.setObjectName("pushButton_4")
 
@@ -194,7 +203,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.pushButton_3.setText(_translate("MainWindow", "Export MSA"))
         self.pushButton_3.clicked.connect(self.export_to_csv)
 
-        self.pushButton_4.setText(_translate("MainWindow", "Submit and Run"))
+        self.pushButton_4.setText(_translate("MainWindow", "Submit"))
         self.pushButton_4.clicked.connect(self.submit_and_run)
 
         self.label_6.setText(_translate("MainWindow", "0"))
@@ -323,16 +332,27 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
     # noinspection PyCallByClass
     def submit_and_run(self):
-        self.pushButton_4.setEnabled(False)
+        self.pushButton_4.clicked.connect(self.stop_process)
+        self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+        self.pushButton_4.setText("Stop")
         self.spread = self.spinBox_2.value()
         # long running process
         self.df = self.df.replace({None: '-'})
-        self.thread.rend(self.spread, self.df)
+        self.thread.start_proc(self.spread, self.df)
 
-    def returnUi(self):
-        self.pushButton_4.setEnabled(True)
-        self.w = ApplicationWindow(self.cluster_map, self.csv_img)
-        self.w.show()
+    def stop_process(self):
+        """Halts the current process, returns the dictionary as is,
+        quits, then waits for the thread to fully finish."""
+        self.thread.get_state()
 
     def return_dict(self, r_dict):
         self.cluster_map = r_dict
+
+    def returnUi(self):
+        self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.pushButton_4.setText("Submit")
+        self.pushButton_4.clicked.connect(self.submit_and_run)
+        self.w = ApplicationWindow(self.cluster_map, self.csv_img)
+        self.w.show()
+
+
