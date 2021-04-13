@@ -204,33 +204,52 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         annot = self.ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points",
                             bbox=dict(boxstyle="round", fc="w"),
                             arrowprops=dict(arrowstyle="->"))
+        flip_annot = self.ax.annotate("", xy=(0, 0), xytext=(-160, 20), textcoords="offset points",
+                                 bbox=dict(boxstyle="round", fc="w"),
+                                 arrowprops=dict(arrowstyle="->"))
         annot.set_visible(False)
+        flip_annot.set_visible(False)
+        max_node_pos = np.unique(sorted([v[0] for k, v in pos.items()]))[-2]
 
         idx_to_node_dict = {}
         for idx, node in enumerate(G.nodes):
             idx_to_node_dict[idx] = node
 
         def update_annot(ind):
+            flip = False
             node_idx = ind["ind"][0]
             node = idx_to_node_dict[node_idx]
             xy = pos[node]
             annot.xy = xy
+            if xy[0] >= max_node_pos:
+                flip = True
+                flip_annot.xy = xy
             node_attr = {'cluster': node}
             node_attr.update(G.nodes[node])
-            text = '\n'.join(f'{k}: {v}' for k, v in node_attr.items())
-            annot.set_text(text)
+            text = '\n'.join(f'{k}: {v}' for k, v in node_attr.items()
+                             if k != "parent")
+            if flip:
+                flip_annot.set_text(text)
+            else:
+                annot.set_text(text)
+
+            return flip
 
         def hover(event):
-            vis = annot.get_visible()
+            vis1, vis2 = annot.get_visible(), flip_annot.get_visible()
             if event.inaxes == self.ax:
                 cont, ind = nodes.contains(event)
                 if cont:
-                    update_annot(ind)
-                    annot.set_visible(True)
+                    decide_pos = update_annot(ind)
+                    if decide_pos:
+                        flip_annot.set_visible(True)
+                    else:
+                        annot.set_visible(True)
                     self.fig.canvas.draw_idle()
                 else:
-                    if vis:
+                    if vis1 or vis2:
                         annot.set_visible(False)
+                        flip_annot.set_visible(False)
                         self.fig.canvas.draw_idle()
 
         self.fig.canvas.mpl_connect("motion_notify_event", hover)
