@@ -8,6 +8,7 @@ else:
         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
 from matplotlib.legend_handler import HandlerPatch
 from ps_app.views.csv_view import ClusterData
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 import csv
 import networkx as nx
@@ -235,12 +236,16 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.fig.canvas.mpl_connect("motion_notify_event", hover)
 
         plt.grid(True, axis='y')
-        plt.colorbar(nodes,
-                     orientation='horizontal',
-                     label='SR(mode) Value',
-                     shrink=0.50,
-                     pad=0.08
+
+        divider = make_axes_locatable(plt.gca())
+        cax = divider.append_axes("right", "2%", pad="3%")
+        cb = plt.colorbar(nodes,
+                     cax=cax,
+                     orientation='vertical',
+                     shrink=0.05,
+                     pad=0.05
                      )
+        cb.ax.set_title('SR(mode)', fontsize=8, weight='bold')
 
         y_ticks = [k for k, v in ytick_list]
         self.ax.yaxis.set_ticks(y_ticks)
