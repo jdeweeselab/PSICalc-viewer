@@ -31,8 +31,8 @@ class Worker(QtCore.QThread):
         self.spread, self.df = None, None
 
     def get_state(self):
-        dict_state = pc.return_dict_state()
-        return dict_state
+        pc.return_dict_state()
+        return
 
     def run(self):
         self.cluster_data = pc.find_clusters(self.spread, self.df)
@@ -343,16 +343,15 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
     def stop_process(self):
         """Halts the current process, returns the dictionary as is,
         quits, then waits for the thread to fully finish."""
-        self.cluster_map = self.thread.get_state()
-        self.returnUi()
-        self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        self.pushButton_4.setText("Submit")
-        self.pushButton_4.clicked.connect(self.submit_and_run)
+        self.thread.get_state()
 
     def return_dict(self, r_dict):
         self.cluster_map = r_dict
 
     def returnUi(self):
+        self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.pushButton_4.setText("Submit")
+        self.pushButton_4.clicked.connect(self.submit_and_run)
         self.w = ApplicationWindow(self.cluster_map, self.csv_img)
         self.w.show()
 
