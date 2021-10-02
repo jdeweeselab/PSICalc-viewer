@@ -1,6 +1,6 @@
 APP_NAME="PSICalc-Viewer.app" 
 DMG_NAME="PSICalc-Viewer.dmg"
-
+fbs clean
 fbs freeze
 
 echo "*** Code Signing Executables ***"
