@@ -54,7 +54,7 @@ xcrun altool --notarize-app --verbose --primary-bundle-id "com.thomastownsley.pc
 --username "thomas@mandosoft.dev" --password "@keychain:AC_PASSWORD" \
 --file ./target/$DMG_NAME
 
-sleep 15m
+sleep 900
 cd target || exit
 xcrun stapler staple "PSICalc-Viewer.app"
 xcrun stapler staple "PSICalc-Viewer.dmg"
