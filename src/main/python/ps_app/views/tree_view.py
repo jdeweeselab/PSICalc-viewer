@@ -272,9 +272,5 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ax.yaxis.set_ticklabels(ytick_labels, visible=True)
         self.ax.xaxis.set_ticks(xtick_list)
         self.ax.xaxis.set_ticklabels(xtick_labels, visible=True)
-
-        for i, k in enumerate(self.ax.xaxis.get_ticklabels()):
-            label = self.ax.xaxis.get_ticklabels()[i]
-            label.set_bbox(dict(facecolor='white', edgecolor='black'))
-        self.ax.tick_params(labelbottom=False, labeltop=True, labelleft=True, labelright=False, bottom=False,
+        self.ax.tick_params(labelbottom=False, labeltop=False, labelleft=True, labelright=False, bottom=False,
                        top=False, left=False, right=False)
