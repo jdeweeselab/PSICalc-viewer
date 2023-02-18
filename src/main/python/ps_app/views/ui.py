@@ -273,7 +273,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         return self.filename
 
     def import_data(self):
-        if str(self.filename).endswith(".txt"):
+        if str(self.filename).endswith((".txt", ".fasta")):
             self.df = pc.read_txt_file_format(self.filename)
         else:
             self.df = pc.read_csv_file_format(self.filename)
