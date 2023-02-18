@@ -20,8 +20,14 @@ eval "$(pyenv init -)"
 
 Create a virtual environment within the psi-calc directory root and activate it:
 ```
-python -m venv venv
-source venv/bin/activate
+pyenv virtualenv <python-version> <env-name>
+pyenv activate <env-name>
+```
+
+Add the following to your ~/.zshrc and ~/.bashrc
+```
+eval "$(pyenv init -)"
+eval "$(pyenv virtualenv-init -)"
 ```
 
 Install python dependencies:
