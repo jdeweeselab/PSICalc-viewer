@@ -1,8 +1,8 @@
+import os
 from fbs_runtime.application_context.PyQt5 import ApplicationContext
 from fbs_runtime.application_context import cached_property
 from ps_app.views.ui import Ui_MainWindow
-import sys
-import os
+
 
 class AppContext(ApplicationContext):
     @cached_property
@@ -19,6 +19,7 @@ class AppContext(ApplicationContext):
     def run(self):
         self.window.show()
         return self.app.exec()
+
 
 if __name__ == '__main__':
     appctxt = AppContext()
