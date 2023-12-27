@@ -19,9 +19,12 @@ from matplotlib import pyplot as plt
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     """Tree Window View"""
-    def __init__(self, path, csv_logo):
+    def __init__(self, path, csv_logo, df, low_entropy):
         super().__init__()
         self.path = path
+        self.df = df
+        self.low_entropy = low_entropy
+
         if type(self.path) is dict:
              self.lines = [[str(k), str(v[0]), str(v[1])] for k, v in self.path.items()]
         else:
@@ -38,7 +41,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.tabs = QtWidgets.QTabWidget()
         layout = QtWidgets.QVBoxLayout(self._main)
 
-        self.table = ClusterData(self.path)
+        self.table = ClusterData(self.path, self.df, self.low_entropy)
         self.tabs.addTab(self.canvas, "Tree View")
         self.tabs.addTab(self.table, "Cluster Data")
         layout.addWidget(self.tabs)

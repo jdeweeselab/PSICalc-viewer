@@ -15,7 +15,7 @@ class AppContext(ApplicationContext):
         return Ui_MainWindow(self.csv_logo)
     @cached_property
     def csv_logo(self):
-        return self.get_resource('csv_logo.png')
+        return self.get_resource('excel_logo.png')
     def run(self):
         self.window.show()
         return self.app.exec()
