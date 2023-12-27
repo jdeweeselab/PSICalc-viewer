@@ -28,19 +28,23 @@ class Worker(QtCore.QThread):
         self.exiting = False
         self.setTerminationEnabled()
         self.cluster_data = dict()
-        self.spread, self.df = None, None
+        self.spread = None
+        self.df = None
+        self.df_unmodified = None
+        self.entropy = None
 
     def get_state(self):
         pc.return_dict_state()
         return
 
     def run(self):
-        self.cluster_data = pc.find_clusters(self.spread, self.df)
+        self.cluster_data = pc.find_clusters(self.spread, self.df, "pairwise", self.entropy)
         self.clusterSignal.emit(self.cluster_data)
 
-    def start_proc(self, spread, df):
+    def start_proc(self, spread, df, entropy):
         self.spread = spread
         self.df = df
+        self.entropy = entropy
         self.start()
 
 
@@ -60,9 +64,11 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.cluster_map = dict()
         self.df = pd.DataFrame()
         self.df_stack = [self.df.copy(deep=True)]
+        self.df_copy = None
         self.is_modified = False
+        self.low_entropy = None
 
-        self.csv_img = csv_img
+        self.excel_img = csv_img
         self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
@@ -117,10 +123,18 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.spinBox.setGeometry(QtCore.QRect(90, 320, 42, 22))
         self.spinBox.setObjectName("spinBox")
         self.spinBox_2 = QtWidgets.QSpinBox(self.widget_2)
-        self.spinBox_2.setGeometry(QtCore.QRect(90, 485, 42, 22))
+        self.spinBox_2.setGeometry(QtCore.QRect(80, 485, 42, 22))
         self.spinBox_2.setObjectName("spinBox_2")
         self.spinBox_2.setMinimum(1)
         self.spinBox_2.setValue(7)
+
+        self.entropySpinBox = QtWidgets.QDoubleSpinBox(self.widget_2)
+        self.entropySpinBox.setDecimals(2)
+        self.entropySpinBox.setRange(0.0, 0.25)
+        self.entropySpinBox.setFixedWidth(75)
+        self.entropySpinBox.setSingleStep(0.01)
+        self.entropySpinBox.setGeometry(QtCore.QRect(250, 485, 42, 22))
+        self.spinBox.setObjectName("entropySpinBox")
 
         self.label_2 = QtWidgets.QLabel(self.widget_2)
         self.label_2.setGeometry(QtCore.QRect(100, 230, 21, 16))
@@ -144,8 +158,12 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.label_8.setGeometry(QtCore.QRect(60, 390, 141, 16))
         self.label_8.setObjectName("label_8")
         self.label_9 = QtWidgets.QLabel(self.widget_2)
-        self.label_9.setGeometry(QtCore.QRect(30, 485, 91, 16))
+        self.label_9.setGeometry(QtCore.QRect(20, 485, 91, 16))
         self.label_9.setObjectName("label_9")
+        self.label_10 = QtWidgets.QLabel(self.widget_2)
+        self.label_10.setGeometry(QtCore.QRect(150, 485, 42, 22))
+        self.label_10.setObjectName("label_10")
+        self.label_10.setFixedWidth(100)
 
         self.lineEdit = QtWidgets.QLineEdit(self.widget_2)
         self.lineEdit.setGeometry(QtCore.QRect(20, 90, 301, 21))
@@ -210,6 +228,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.label_7.setText(_translate("MainWindow", "%"))
         self.label_8.setText(_translate("MainWindow", "that must be present"))
         self.label_9.setText(_translate("MainWindow", "Spread:"))
+        self.label_10.setText(_translate("MainWindow", "Entropy cutoff:"))
 
     def onReadyReadStandardOutput(self):
         result = self.process.readAllStandardOutput().data().decode()
@@ -299,7 +318,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
     def load_cluster_data(self):
         self.pushButton_handler()
-        self.win = ApplicationWindow(self.filename, self.csv_img)
+        self.win = ApplicationWindow(self.filename, self.excel_img)
         self.win.show()
 
     def garbage_collect(self, df: pd.DataFrame):
@@ -336,9 +355,13 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
         self.pushButton_4.setText("Stop")
         self.spread = self.spinBox_2.value()
+        self.entropy = self.entropySpinBox.value()
         # long running process
         self.df = self.df.replace({None: '-'})
-        self.thread.start_proc(self.spread, self.df)
+        self.df_copy = self.df.copy(deep=True)
+        # I believe this essentially needs to be intialized
+        # and sent as data to a thread. No idea why I did it this way :/
+        self.thread.start_proc(self.spread, self.df, self.entropy)
 
     def stop_process(self):
         """Halts the current process, returns the dictionary as is,
@@ -346,13 +369,15 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.thread.get_state()
 
     def return_dict(self, r_dict):
+        self.low_entropy = r_dict["low_entropy_sites"]
+        del r_dict["low_entropy_sites"]
         self.cluster_map = r_dict
 
     def returnUi(self):
         self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.pushButton_4.setText("Submit")
         self.pushButton_4.clicked.connect(self.submit_and_run)
-        self.w = ApplicationWindow(self.cluster_map, self.csv_img)
+        self.w = ApplicationWindow(self.cluster_map, self.excel_img, self.df_copy, self.low_entropy)
         self.w.show()
 
 
