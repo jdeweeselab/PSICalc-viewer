@@ -6,7 +6,6 @@ if QtCore.qVersion() >= "5.":
 else:
     from matplotlib.backends.backend_qt4agg import (
         FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
-from matplotlib.legend_handler import HandlerPatch
 from ps_app.views.csv_view import ClusterData
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -19,14 +18,15 @@ from matplotlib import pyplot as plt
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     """Tree Window View"""
-    def __init__(self, path, csv_logo, df, low_entropy):
+    def __init__(self, path, csv_logo, data, low_entropy, column_map):
         super().__init__()
         self.path = path
-        self.df = df
+        self.data = data
+        self.column_map = column_map
         self.low_entropy = low_entropy
 
         if type(self.path) is dict:
-             self.lines = [[str(k), str(v[0]), str(v[1])] for k, v in self.path.items()]
+            self.lines = [[str(k), str(v[0]), str(v[1])] for k, v in self.path.items()]
         else:
             with open(self.path) as f:
                 self.lines = list(csv.reader(f))
@@ -41,7 +41,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.tabs = QtWidgets.QTabWidget()
         layout = QtWidgets.QVBoxLayout(self._main)
 
-        self.table = ClusterData(self.path, self.df, self.low_entropy)
+        self.table = ClusterData(self.path, self.data, self.low_entropy)
         self.tabs.addTab(self.canvas, "Tree View")
         self.tabs.addTab(self.table, "Cluster Data")
         layout.addWidget(self.tabs)
@@ -68,8 +68,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.canvas.draw()
 
     # reformats sequence of numbers with hyphens
-    @staticmethod
-    def get_line_numbers_concat(line_nums):
+    def get_line_numbers_concat(self, line_nums):
         seq = []
         final = []
         last = 0
@@ -77,7 +76,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         for index, val in enumerate(line_nums):
 
             if last + 1 == val or index == 0:
-                seq.append(val)
+                seq.append(self.column_map.get(val))
                 last = val
             else:
                 if len(seq) > 1:
@@ -85,7 +84,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 else:
                     final.append(str(seq[0]))
                 seq = list()
-                seq.append(val)
+                seq.append(self.column_map.get(val))
                 last = val
 
             if index == len(line_nums) - 1:
@@ -106,12 +105,16 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         """
         This is the main tree drawing method
         """
-        data = self.lines
-        data = [e for e in data if len(e) != 0]
+
+        data = [e for e in self.lines if len(e) != 0]
         values = [entry for entry in data if float(entry[1]) >= cutoff]  # modified variable
         tree_list = [(entry[0].strip('()'), entry[1]) for entry in values]
         tree_list = [(i[0].split(','), i[1]) for i in tree_list]
-        tree_list = [(list(map(int, i[0])), float(i[1])) for i in tree_list]
+        reverse_column_map = {str(v): k for k, v in self.column_map.items()}
+        tree_list = [
+            (list(map(lambda a: reverse_column_map.get(a.strip().replace("'", "")), i[0])), float(i[1]))
+            for i in tree_list
+        ]
         max_len = max([len(s[0]) for s in tree_list])
 
         # Create graph and set default attributes for nodes
@@ -185,7 +188,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         G = nx.relabel_nodes(G, lambda x: self.get_line_numbers_concat(x))
 
         """
-        All of the custom graph drawing 
+        All of the custom graph drawing
         """
         self.fig.clear()
         self.ax = self.fig.add_subplot(1, 1, 1)
