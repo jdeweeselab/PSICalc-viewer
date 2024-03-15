@@ -2,10 +2,10 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtWidgets import QFileDialog, QStyle
 from ps_app.views.tree_view import ApplicationWindow
-import gc
 import sys
 import psicalc as pc
 import pandas as pd
+import os
 
 
 class EmittingStream(QtCore.QObject):
@@ -23,34 +23,35 @@ class Worker(QtCore.QThread):
     outputSignal = QtCore.pyqtSignal(str)
     clusterSignal = QtCore.pyqtSignal(object)
 
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         QtCore.QThread.__init__(self, parent)
         self.exiting = False
         self.setTerminationEnabled()
         self.cluster_data = dict()
         self.spread = None
-        self.df = None
-        self.df_unmodified = None
+        self.merged_data = None
         self.entropy = None
+        self.use_esp = False
 
     def get_state(self):
         pc.return_dict_state()
         return
 
     def run(self):
-        self.cluster_data = pc.find_clusters(self.spread, self.df, "pairwise", self.entropy)
+        self.cluster_data = pc.find_clusters(self.spread, self.merged_data, "pairwise", self.entropy, self.use_esp)
         self.clusterSignal.emit(self.cluster_data)
 
-    def start_proc(self, spread, df, entropy):
+    def start_proc(self, spread,  merged_data, entropy, use_esp):
         self.spread = spread
-        self.df = df
+        self.merged_data = merged_data
         self.entropy = entropy
+        self.use_esp = use_esp
         self.start()
 
 
 class Ui_MainWindow(QtWidgets.QMainWindow):
 
-    def __init__(self, csv_img):
+    def __init__(self, img):
         super().__init__()
         self.setObjectName("PSICalc Viewer")
         self.resize(960, 639)
@@ -60,15 +61,15 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.thread = Worker()
         self.thread.clusterSignal.connect(self.return_dict)
         self.thread.finished.connect(self.returnUi)
-        self.filename = str()
         self.cluster_map = dict()
-        self.df = pd.DataFrame()
-        self.df_stack = [self.df.copy(deep=True)]
-        self.df_copy = None
-        self.is_modified = False
+        self.files = list()
+        self.labels = list()
+        self.original_data = list()
+        self.merged_data = pd.DataFrame()
+        self.column_map = dict()
         self.low_entropy = None
 
-        self.excel_img = csv_img
+        self.excel_img = img
         self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
@@ -84,7 +85,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.widget.setObjectName("widget")
 
         self.textBrowser = QtWidgets.QTextBrowser(self.widget)
-        self.textBrowser.setGeometry(QtCore.QRect(0, 55, 571, 150))
+        self.textBrowser.setGeometry(QtCore.QRect(0, 10, 571, 200))
         self.textBrowser.setObjectName("textBrowser")
         self.textBrowser.setStyleSheet("border: 1px solid; border-color: silver;"
                                        "border-radius:7px; background-color: palette(base); ")
@@ -102,13 +103,13 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.process = QtCore.QProcess()
         self.process.readyReadStandardOutput.connect(self.onReadyReadStandardOutput)
 
-        self.pushButton = QtWidgets.QPushButton(self.widget_2)
-        self.pushButton.setGeometry(QtCore.QRect(20, 40, 181, 31))
-        self.pushButton.setObjectName("pushButton")
-
         self.pushButton_2 = QtWidgets.QPushButton(self.widget_2)
-        self.pushButton_2.setGeometry(QtCore.QRect(20, 140, 191, 31))
+        self.pushButton_2.setGeometry(QtCore.QRect(10, 150, 191, 32))
         self.pushButton_2.setObjectName("pushButton_2")
+
+        self.espBox = QtWidgets.QCheckBox(self.widget_2)
+        self.espBox.setGeometry(QtCore.QRect(220, 149, 100, 32))
+        self.espBox.setObjectName("espBox")
 
         self.checkBox = QtWidgets.QCheckBox(self.widget_2)
         self.checkBox.setGeometry(QtCore.QRect(20, 190, 301, 41))
@@ -126,7 +127,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.spinBox_2.setGeometry(QtCore.QRect(80, 485, 42, 22))
         self.spinBox_2.setObjectName("spinBox_2")
         self.spinBox_2.setMinimum(1)
-        self.spinBox_2.setValue(7)
+        self.spinBox_2.setValue(1)
 
         self.entropySpinBox = QtWidgets.QDoubleSpinBox(self.widget_2)
         self.entropySpinBox.setDecimals(2)
@@ -134,10 +135,10 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.entropySpinBox.setFixedWidth(75)
         self.entropySpinBox.setSingleStep(0.01)
         self.entropySpinBox.setGeometry(QtCore.QRect(250, 485, 42, 22))
-        self.spinBox.setObjectName("entropySpinBox")
+        self.entropySpinBox.setObjectName("entropySpinBox")
 
         self.label_2 = QtWidgets.QLabel(self.widget_2)
-        self.label_2.setGeometry(QtCore.QRect(100, 230, 21, 16))
+        self.label_2.setGeometry(QtCore.QRect(100, 235, 21, 16))
         self.label_2.setObjectName("label_2")
         self.label_3 = QtWidgets.QLabel(self.widget_2)
         self.label_3.setGeometry(QtCore.QRect(20, 260, 331, 31))
@@ -165,19 +166,16 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.label_10.setObjectName("label_10")
         self.label_10.setFixedWidth(100)
 
-        self.lineEdit = QtWidgets.QLineEdit(self.widget_2)
-        self.lineEdit.setGeometry(QtCore.QRect(20, 90, 301, 21))
-        self.lineEdit.setObjectName("lineEdit")
-        self.lineEdit.setStyleSheet("border: 1px solid; border-color: silver;"
-                                    " border-radius:3px; background-color: palette(base); ")
+        self.filesWidget = FilesWidget(self.widget_2, lambda files, labels: self.import_data(files, labels))
+        self.filesWidget.setGeometry(QtCore.QRect(0, 0, 301, 145))
 
         self.pushButton_3 = QtWidgets.QPushButton(self.widget_2)
-        self.pushButton_3.setGeometry(QtCore.QRect(20, 540, 151, 31))
+        self.pushButton_3.setGeometry(QtCore.QRect(20, 540, 151, 32))
         self.pushButton_3.setObjectName("pushButton_3")
 
         self.pushButton_4 = QtWidgets.QPushButton(self.widget_2)
         self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        self.pushButton_4.setGeometry(QtCore.QRect(180, 540, 151, 31))
+        self.pushButton_4.setGeometry(QtCore.QRect(180, 540, 151, 32))
         self.pushButton_4.setObjectName("pushButton_4")
 
         self.label = QtWidgets.QLabel(self.widget)
@@ -201,10 +199,11 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "PsiCalc Viewer"))
 
-        self.pushButton.setText(_translate("MainWindow", "Select File for Upload"))
-        self.pushButton.clicked.connect(self.select_file_for_upload)
         self.pushButton_2.setText(_translate("MainWindow", "Load Cluster Data"))
         self.pushButton_2.clicked.connect(self.load_cluster_data)
+        self.pushButton_2.setEnabled(False)
+
+        self.espBox.setText(_translate("MainWindow", "Use epsilon"))
 
         self.checkBox.setText(_translate("MainWindow", "Label Using First Row Mapping"))
         self.checkBox.stateChanged.connect(self.if_button_checked)
@@ -222,6 +221,10 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.pushButton_3.clicked.connect(self.export_to_csv)
 
         self.pushButton_4.setText(_translate("MainWindow", "Submit"))
+        try:
+            self.pushButton_4.clicked.disconnect()
+        except TypeError:
+            pass
         self.pushButton_4.clicked.connect(self.submit_and_run)
 
         self.label_6.setText(_translate("MainWindow", "0"))
@@ -235,112 +238,123 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.textEdit.appendPlainText(result)
         self.outputSignal.emit(result)
 
-    def pushButton_handler(self):
-        self.open_dialog_box()
-
     def spinBox_handler(self):
-        if not self.checkBox.isChecked():
-            self.df = pc.durston_schema(self.df, self.spinBox.value())
-            self.insert_to_window(self.df)
-            self.df_stack.pop(0)
-            self.df_stack.append(self.df.copy(deep=True))
-            self.is_modified = True
+        self.apply_transforms()
+
+    def if_button_checked(self, state):
+        if state == QtCore.Qt.Unchecked:
+            self.spinBox.setEnabled(True)
         else:
-            self.textBrowser.clear()
-            self.textBrowser.insertPlainText("Error: Cannot change label number while box is checked.")
+            self.spinBox.setEnabled(False)
+
+        self.apply_transforms()
+
+    def apply_transforms(self):
+        """
+        Update saved dataframes based on all user settings
+        """
+
+        data = self.original_data.copy()
+        if self.checkBox.isChecked():
+            data = [pc.deweese_schema(df, 'None') for df in data]
+        else:
+            data = [pc.durston_schema(df, self.spinBox.value()) for df in data]
+
+        if self.horizontalSlider.value() > 0:
+            data = self.remove_insertion_data(data, self.horizontalSlider.value())
+
+        self.insert_to_window(data)
+
+        self.merged_data = pc.merge_sequences(data, self.labels)
 
     def horizontalSlider_handler(self):
         self.label_6.setText(str(self.horizontalSlider.value()))
         self.insert_to_window("Loading...")
 
     def horizontalSlider_handler_2(self):
-        stack_copy = self.df_stack[0]
-        if not stack_copy.empty:
-            self.df = self.remove_insertion_data(stack_copy, self.horizontalSlider.value())
-            self.insert_to_window(self.df)
-        else:
-            self.textBrowser.clear()
-            self.textBrowser.insertPlainText("Error: Please select a labelling option first.")
+        self.apply_transforms()
 
     # noinspection PyTypeChecker
-    def remove_insertion_data(self, df: pd.DataFrame, value):
-        try:
-            index_len = len(df.index)
-            null_val = float(value) / 100
-            #df = df.replace({'[-#?.]': None}, regex=True)
-            labels_to_delete = []
+    def remove_insertion_data(self, data: [pd.DataFrame], value):
+        for i in range(len(data)):
+            try:
+                index_len = len(data[i].index)
+                null_val = float(value) / 100
+                data[i] = data[i].replace({'[-#?.]': None}, regex=True)
+                labels_to_delete = []
 
-            def series_remove_insertions(x):
-                non_nulls = x.count()
-                info_amount = non_nulls / index_len
-                if info_amount < null_val:
-                    labels_to_delete.append(x.name)
-                return
+                def series_remove_insertions(x):
+                    non_nulls = x.count()
+                    info_amount = non_nulls / index_len
+                    if info_amount < null_val:
+                        labels_to_delete.append(x.name)
+                    return
 
-            df.apply(series_remove_insertions, axis=0)
+                data[i].apply(series_remove_insertions, axis=0)
+                data[i] = data[i].drop(labels_to_delete, axis=1)
 
-            df = df.drop(labels_to_delete, axis=1)
+            except IndexError or KeyError:
+                self.insert_to_window("Not enough columns.")
 
-        except IndexError or KeyError:
-            self.insert_to_window("Not enough columns.")
+        return data
 
-        return df
+    def import_data(self, files, labels):
+        if not files:
+            return
 
-    def open_dialog_box(self):
-        self.filename = QFileDialog.getOpenFileName()[0]
-        self.lineEdit.insert(self.filename)
-        return self.filename
+        self.files = files
 
-    def import_data(self):
-        if str(self.filename).endswith((".txt", ".fasta")):
-            self.df = pc.read_txt_file_format(self.filename)
+        # If there's a single MSA, don't use the label
+        if len(labels) == 1:
+            self.labels = []
         else:
-            self.df = pc.read_csv_file_format(self.filename)
-        self.df = self.df.replace({'[-#?.]': None}, regex=True)
-        self.insert_to_window(self.df)
+            self.labels = labels
+
+        # Read all of the files and store in a list of dataframes
+        data = []
+        for filename in self.files:
+            if str(filename).endswith((".txt", ".fasta")):
+                df = pc.read_txt_file_format(filename)
+                df = df.replace({'[-#?.]': None}, regex=True)
+                data.append(df)
+            else:
+                df = pc.read_csv_file_format(filename)
+                df = df.replace({'[-#?.]': None}, regex=True)
+                data.append(df)
+
+        self.original_data = data
+
+        # Apply user settings to new data
+        self.apply_transforms()
 
     def insert_to_window(self, args):
         self.textBrowser.clear()
-        if isinstance(args, pd.DataFrame):
+
+        if isinstance(args, list):
             try:
-                self.textBrowser.insertPlainText("Columns:  " + str(len(self.df.columns)) + "\n" +
-                                                 "Sequences: " + str(len(self.df.index)) + "\n" +
-                                                 "Label Numbers: "
-                                                 + str(args.columns[0]) + "..." + str(args.columns[-1]))
+                for i in range(len(args)):
+                    if i < len(self.labels):
+                        label = self.labels[i]
+                    else:
+                        label = ''
+                    self.textBrowser.insertPlainText("File: " + self.files[i] + "\n" +
+                                                     "Columns:  " + str(len(args[i].columns)) + "\n" +
+                                                     "Sequences: " + str(len(args[i].index)) + "\n" +
+                                                     "Labels: " + label + str(args[0].columns[0]) + "..."
+                                                     + label + str(args[0].columns[-1])
+                                                     + "\n\n")
             except IndexError:
                 self.insert_to_window("Not enough columns to use.")
         elif isinstance(args, str):
             self.textBrowser.insertPlainText(args)
 
-    def select_file_for_upload(self):
-        self.pushButton_handler()
-        self.import_data()
-
     def load_cluster_data(self):
-        self.pushButton_handler()
-        self.win = ApplicationWindow(self.filename, self.excel_img)
-        self.win.show()
-
-    def garbage_collect(self, df: pd.DataFrame):
-        del df
-        gc.collect()
-        self.import_data()
-
-    def if_button_checked(self):
-        if self.checkBox.isChecked():
-            if self.is_modified:
-                self.garbage_collect(self.df)
-            self.df = pc.deweese_schema(self.df, 'None')
-            self.insert_to_window(self.df)
-            self.df_stack.pop(0)
-            self.df_stack.append(self.df.copy(deep=True))
-        if not self.checkBox.isChecked():
-            self.garbage_collect(self.df)
+        pass
 
     def export_to_csv(self):
         file = QFileDialog.getSaveFileName()
         save_file = str(file[0])
-        self.df.to_csv(save_file, index=True, header=True)
+        self.merged_data.to_csv(save_file, index=True, header=True)
 
     def normalOutputWritten(self, text):
         cursor = self.textEdit.textCursor()
@@ -351,17 +365,15 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
     # noinspection PyCallByClass
     def submit_and_run(self):
+        self.pushButton_4.clicked.disconnect()
         self.pushButton_4.clicked.connect(self.stop_process)
         self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
         self.pushButton_4.setText("Stop")
         self.spread = self.spinBox_2.value()
         self.entropy = self.entropySpinBox.value()
-        # long running process
-        self.df = self.df.replace({None: '-'})
-        self.df_copy = self.df.copy(deep=True)
         # I believe this essentially needs to be intialized
         # and sent as data to a thread. No idea why I did it this way :/
-        self.thread.start_proc(self.spread, self.df, self.entropy)
+        self.thread.start_proc(self.spread, self.merged_data, self.entropy, self.espBox.isChecked())
 
     def stop_process(self):
         """Halts the current process, returns the dictionary as is,
@@ -371,13 +383,156 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
     def return_dict(self, r_dict):
         self.low_entropy = r_dict["low_entropy_sites"]
         del r_dict["low_entropy_sites"]
+
+        self.column_map = r_dict["column_map"]
+        del r_dict["column_map"]
+
         self.cluster_map = r_dict
 
     def returnUi(self):
         self.pushButton_4.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.pushButton_4.setText("Submit")
+        self.pushButton_4.clicked.disconnect()
         self.pushButton_4.clicked.connect(self.submit_and_run)
-        self.w = ApplicationWindow(self.cluster_map, self.excel_img, self.df_copy, self.low_entropy)
+        self.w = ApplicationWindow(self.cluster_map, self.excel_img,
+                                   self.merged_data, self.low_entropy, self.column_map)
         self.w.show()
 
 
+class FilesWidget(QtWidgets.QWidget):
+    def __init__(self, parent, callback):
+        super().__init__(parent)
+
+        self.change_callback = callback
+        self.files = dict()
+        self.prev_files = dict()
+
+        # Build the table view
+        self.table = QtWidgets.QTableWidget(0, 3)
+        self.table.verticalHeader().hide()
+        self.table.setHorizontalHeaderLabels(['Label', 'File', ''])
+        self.table.setColumnWidth(0, self.table.fontMetrics().width('Label') + 10)
+        self.table.horizontalHeader().setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
+        self.table.setEditTriggers(QtWidgets.QAbstractItemView.AllEditTriggers)
+        self.table.itemChanged.connect(self.label_changed)
+
+        # Add new rows
+        self.add_button = QtWidgets.QPushButton('Add MSA file(s)...')
+        self.add_button.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Fixed)
+        self.add_button.clicked.connect(self.add_files)
+
+        # Layout for table and button
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.table)
+        button_layout = QtWidgets.QHBoxLayout()
+        button_layout.addStretch(1)
+        button_layout.addWidget(self.add_button)
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+
+    def add_files(self):
+        label_gen = FilesWidget.label_gen()
+        add_files = QFileDialog.getOpenFileNames()[0]
+
+        # Make sure the files and labels are unique. Save in a dict[filename] = label
+        for filename in add_files:
+            if filename not in self.files:
+                label = next(label_gen)
+                used_labels = list(self.files.values())
+                while label in used_labels:
+                    label = next(label_gen)
+                self.files[filename] = label
+
+        # Repopulate the table
+        self.redraw()
+
+        # Save a copy in case we decide to revert later
+        self.prev_files = self.files.copy()
+
+        # Callback to the main window to update files and labels
+        if add_files and self.change_callback:
+            self.change_callback(list(self.files.keys()), list(self.files.values()))
+
+    def label_changed(self, item):
+        # Don't run this function for changes in here
+        self.table.itemChanged.disconnect(self.label_changed)
+
+        # Only for labels
+        if item.column() == 0:
+            new_label = item.text().strip()
+            filename = self.table.item(item.row(), 1).data(QtCore.Qt.UserRole)
+
+            # Make sure the user doesn't enter a dupilcate or empty label before updating
+            if not new_label:
+                QtWidgets.QMessageBox.warning(self, 'Error', "Labels can't be blank")
+                item.setText(self.prev_files[filename])
+            elif len(self.files) > 1 and new_label in self.files.values():
+                QtWidgets.QMessageBox.warning(self, 'Error', "Labels must be unique")
+                item.setText(self.prev_files[filename])
+            else:
+                self.files[filename] = new_label
+                self.prev_files = self.files.copy()
+                item.setToolTip(new_label)
+
+                if self.change_callback:
+                    self.change_callback(list(self.files.keys()), list(self.files.values()))
+
+        self.table.itemChanged.connect(self.label_changed)
+
+    def redraw(self):
+        # Don't run this function for changes in here
+        self.table.itemChanged.disconnect(self.label_changed)
+
+        # Make a local copy and don't render a label if there's only one file
+        files = self.files.copy()
+        if len(self.files) == 1:
+            files[list(files.keys())[0]] = ''
+
+        # Clear the table
+        self.table.setRowCount(0)
+        for filename, label in files.items():
+            row_position = self.table.rowCount()
+            self.table.insertRow(row_position)
+
+            label_item = QtWidgets.QTableWidgetItem(label)
+            label_item.setToolTip(label)
+            self.table.setItem(row_position, 0, QtWidgets.QTableWidgetItem(label_item))
+
+            # Uses just the file basename for display, but stores the full path for processing
+            filename_item = QtWidgets.QTableWidgetItem(os.path.basename(filename))
+            filename_item.setData(QtCore.Qt.UserRole, filename)
+            filename_item.setToolTip(filename)
+            filename_item.setFlags(filename_item.flags() & ~QtCore.Qt.ItemIsEditable)
+            self.table.setItem(row_position, 1, filename_item)
+
+            remove_button = QtWidgets.QPushButton()
+            remove_button.setIcon(self.style().standardIcon(QStyle.SP_DialogCloseButton))
+            remove_button.setStyleSheet("border: none;")
+            remove_button.clicked.connect(self.remove_file)
+            self.table.setCellWidget(row_position, 2, remove_button)
+
+        self.table.itemChanged.connect(self.label_changed)
+
+    def remove_file(self):
+        # Get the button that was clicked
+        remove_button = self.sender()
+        if remove_button:
+            row = self.table.indexAt(remove_button.pos()).row()
+            del self.files[self.table.item(row, 1).data(QtCore.Qt.UserRole)]
+            self.prev_files = self.files.copy()
+            self.redraw()
+
+            if self.change_callback:
+                self.change_callback(list(self.files.keys()), list(self.files.values()))
+
+    @staticmethod
+    def label_gen():
+        """
+        Generator to create labels A-Z, AA-ZZ, etc
+        """
+        letters = list('ABCDEFGHIJKLMNOPQRSTUVWXYZ')
+        labels = list(letters)
+        while True:
+            yield from labels
+            labels = [a+b for a in labels for b in letters]

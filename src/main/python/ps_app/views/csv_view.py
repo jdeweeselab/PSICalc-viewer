@@ -3,13 +3,14 @@ import csv
 from PyQt5 import QtWidgets
 import openpyxl
 
+
 class ClusterData(QtWidgets.QTableWidget):
-    def __init__(self, path, df, low_entropy):
+    def __init__(self, path, data, low_entropy):
         super().__init__()
         self.setRowCount(0)
         self.setColumnCount(3)
         self.cluster_map = path
-        self.df = df
+        self.data = data
         self.low_entropy = low_entropy
         if type(self.cluster_map) is dict:
             file = [[str(k), str(v[0]), str(v[1])] for k, v in self.cluster_map.items()]
@@ -45,34 +46,61 @@ class ClusterData(QtWidgets.QTableWidget):
                         row_data.append('')
                 ws.append(row_data)
 
-            if self.df is not None:
-                # Pairwise Sheet
-                pairwise_sheet = wb.create_sheet(title="Pairwise")
-                pairs = [k for k, v in self.cluster_map.items() if len(k) == 2]
-                for idx, p in enumerate(pairs):
-                    column_1, column_2 = p
-                    df1, df2 = self.df[column_1], self.df[column_2]
-                    start_column = idx * 3 + 1  # Calculate the starting column for the new pair
-
-                    # Insert each pandas Series as a column next to each other
-                    pairwise_sheet.cell(row=1, column=start_column, value=column_1)
-                    pairwise_sheet.cell(row=1, column=start_column + 1, value=column_2)
-                    pairwise_sheet.cell(row=1, column=start_column + 2, value='')
-
-                    for row_idx in range(max(len(df1), len(df2))):
-                        value_1 = df1.iloc[row_idx] if row_idx < len(df1) else ''
-                        value_2 = df2.iloc[row_idx] if row_idx < len(df2) else ''
-                        pairwise_sheet.cell(row=row_idx + 2, column=start_column, value=value_1)
-                        pairwise_sheet.cell(row=row_idx + 2, column=start_column + 1, value=value_2)
-                        pairwise_sheet.cell(row=row_idx + 2, column=start_column + 2, value='')
-
+            if self.data is not None:
                 # Entropy Sheet
                 if self.low_entropy is not None:
-                    low_entropy_res = self.df[self.low_entropy]
+                    low_entropy_res = self.data[self.low_entropy]
                     entropy_sheet = wb.create_sheet(title="Low Entropy")
                     entropy_sheet.append(low_entropy_res.columns.to_list())
                     for index, row in low_entropy_res.iterrows():
                         row_data = row.tolist()
                         entropy_sheet.append(row_data)
 
+                # Cluster sheets
+                cluster_lengths = sorted(set([len(k) for k, _ in self.cluster_map.items()]))
+                for n in cluster_lengths:
+                    if n > 10:
+                        continue
+
+                    title = ""
+                    if n == 2:
+                        title = "Pairwise"
+                    else:
+                        title = ordinal(n) + " order"
+
+                    sheet = wb.create_sheet(title=title)
+                    n_tuples = [k for k, v in self.cluster_map.items() if len(k) == n]
+                    for idx, p in enumerate(n_tuples):
+                        # Calculate the starting column for the new tuple
+                        start_column = idx * (n+1) + 1
+
+                        # Insert each pandas Series as a column next to each other
+                        for i in range(n):
+                            sheet.cell(row=1, column=start_column+i, value=p[i])
+                        sheet.cell(row=1, column=start_column + n, value='')
+
+                        # Insert values
+                        df_list = [self.data[column] for column in p]
+                        max_len = max([len(df) for df in df_list])
+                        for row_idx in range(max_len):
+                            for i, df in enumerate(df_list):
+                                value = df.iloc[row_idx] if row_idx < len(df) else ''
+                                sheet.cell(row=row_idx+2, column=start_column + i, value=value)
+                            sheet.cell(row=row_idx+2, column=start_column + len(p), value='')
+
             wb.save(path)
+
+
+def ordinal(n):
+    if 10 <= n <= 20:
+        return str(n) + 'th'
+    else:
+        last = n % 10
+        if last == 1:
+            return str(n) + 'st'
+        elif last == 2:
+            return str(n) + 'nd'
+        elif last == 3:
+            return str(n) + 'rd'
+        else:
+            return str(n) + 'th'
