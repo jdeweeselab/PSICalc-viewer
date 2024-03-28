@@ -18,7 +18,7 @@ from matplotlib import pyplot as plt
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     """Tree Window View"""
-    def __init__(self, path, csv_logo, data, low_entropy, column_map):
+    def __init__(self, path, data, low_entropy, column_map):
         super().__init__()
         self.path = path
         self.data = data
@@ -30,7 +30,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         else:
             with open(self.path) as f:
                 self.lines = list(csv.reader(f))
-            self.lines = self.lines[1:] # ignores header
+            self.lines = self.lines[1:]  # ignores header
 
         self.fig = plt.figure(figsize=(5, 5))
         self.canvas = FigureCanvas(self.fig)
@@ -47,8 +47,7 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.tabs)
         self.nav_bar = self.addToolBar(NavigationToolbar(self.canvas, self))
 
-        csv_img = csv_logo
-        save_file_action = QAction(QtGui.QIcon(csv_img), 'Save CSV', self)
+        save_file_action = QAction(QtGui.QIcon(":icons/excel_logo.png"), 'Save CSV', self)
         save_file_action.triggered.connect(self.table.save_sheet)
         self.toolbar = self.addToolBar('Data')
         self.toolbar.addAction(save_file_action)
@@ -170,22 +169,31 @@ class ApplicationWindow(QtWidgets.QMainWindow):
                 y_pos -= 100
                 ytick_list.append([y_pos, n_order])
 
+        # On Windows, pygraphviz can't seem to hash arbitrary nodes, e.g., (19, 53). So we
+        # create a mapping, relabel, call graphviz_layout(), and then relabel back to the
+        # original...
+        keys_as_int = {}
+        keys_as_str = {}
+        for i, label in enumerate(G):
+            keys_as_int[label] = i
+            keys_as_str[i] = label
+        nx.relabel_nodes(G, keys_as_int, copy=False)
         pos = graphviz_layout(G, prog='dot')
+        nx.relabel_nodes(G, keys_as_str, copy=False)
 
         for i, j in ytick_list:
             for each, coord in pos.items():
-                if len(each) == j:
+                if len(keys_as_str[each]) == j:
                     pos[each] = (coord[0], (i + 3))
         x_label = 1
         for each, coord in pos.items():
-            if len(each) == 2:
+            if len(keys_as_str[each]) == 2:
                 xtick_list.append(coord[0])
-                xtick_labels.append(x_label)
                 x_label += 1
 
-        pos = {self.get_line_numbers_concat(k): v for k, v in pos.items()}
+        pos = {self.get_line_numbers_concat(keys_as_str[k]): v for k, v in pos.items()}
         # noinspection PyTypeChecker
-        G = nx.relabel_nodes(G, lambda x: self.get_line_numbers_concat(x))
+        G = nx.relabel_nodes(G, self.get_line_numbers_concat)
 
         """
         All of the custom graph drawing
@@ -208,11 +216,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         nx.draw_networkx_edges(G, pos=pos, ax=self.ax, style='dashed', edge_color='#DB7093', edgelist=edges_s, width=1.5,
                                alpha=.5)
         annot = self.ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points",
-                            bbox=dict(boxstyle="round", fc="w"),
-                            arrowprops=dict(arrowstyle="->"))
-        flip_annot = self.ax.annotate("", xy=(0, 0), xytext=(-160, 20), textcoords="offset points",
                                  bbox=dict(boxstyle="round", fc="w"),
                                  arrowprops=dict(arrowstyle="->"))
+        flip_annot = self.ax.annotate("", xy=(0, 0), xytext=(-160, 20), textcoords="offset points",
+                                      bbox=dict(boxstyle="round", fc="w"),
+                                      arrowprops=dict(arrowstyle="->"))
         annot.set_visible(False)
         flip_annot.set_visible(False)
         avg_node_pos = np.mean(np.unique(
@@ -266,11 +274,11 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         divider = make_axes_locatable(plt.gca())
         cax = divider.append_axes("right", "2%", pad="3%")
         cb = plt.colorbar(nodes,
-                     cax=cax,
-                     orientation='vertical',
-                     shrink=0.05,
-                     pad=0.05
-                     )
+                          cax=cax,
+                          orientation='vertical',
+                          shrink=0.05,
+                          pad=0.05
+                          )
         cb.ax.set_title('SR(mode)', fontsize=8, weight='bold')
 
         y_ticks = [k for k, v in ytick_list]
@@ -279,4 +287,4 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.ax.xaxis.set_ticks(xtick_list)
         self.ax.xaxis.set_ticklabels(xtick_labels, visible=True)
         self.ax.tick_params(labelbottom=False, labeltop=False, labelleft=True, labelright=False, bottom=False,
-                       top=False, left=False, right=False)
+                            top=False, left=False, right=False)

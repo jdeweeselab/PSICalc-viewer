@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PSICalc Viewer
+Comment=PSICalc algorithm viewer
+Path=/usr/bin
+Exec=psicalc-viewer
+Icon=psicalc-viewer
+Categories=Education;Science
