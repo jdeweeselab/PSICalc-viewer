@@ -7,6 +7,8 @@ import psicalc as pc
 import pandas as pd
 import os
 
+pd.set_option('future.no_silent_downcasting', True)
+
 
 class EmittingStream(QtCore.QObject):
     textWritten = QtCore.pyqtSignal(str)
@@ -51,7 +53,7 @@ class Worker(QtCore.QThread):
 
 class Ui_MainWindow(QtWidgets.QMainWindow):
 
-    def __init__(self, img):
+    def __init__(self):
         super().__init__()
         self.setObjectName("PSICalc Viewer")
         self.resize(960, 639)
@@ -69,7 +71,6 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.column_map = dict()
         self.low_entropy = None
 
-        self.excel_img = img
         self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
         self.horizontalLayout = QtWidgets.QHBoxLayout(self.centralwidget)
@@ -394,8 +395,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.pushButton_4.setText("Submit")
         self.pushButton_4.clicked.disconnect()
         self.pushButton_4.clicked.connect(self.submit_and_run)
-        self.w = ApplicationWindow(self.cluster_map, self.excel_img,
-                                   self.merged_data, self.low_entropy, self.column_map)
+        self.w = ApplicationWindow(self.cluster_map, self.merged_data, self.low_entropy, self.column_map)
         self.w.show()
 
 

@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="icons">
+        <file alias="excel_logo.png">icons/excel_logo.png</file>
+        <file alias="icon.ico">psicalc-viewer.ico</file>
+    </qresource>
+</RCC>
