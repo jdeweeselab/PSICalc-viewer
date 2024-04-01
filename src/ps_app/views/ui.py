@@ -2,7 +2,6 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtWidgets import QFileDialog, QStyle
 from ps_app.views.tree_view import ApplicationWindow
-from ps_app.views.csv_view import read_xls
 import sys
 import psicalc as pc
 import pandas as pd
@@ -55,9 +54,10 @@ class Worker(QtCore.QThread):
 
 
 class LoadClusterWorker(QtCore.QThread):
-    finished = QtCore.pyqtSignal()
+    finished = QtCore.pyqtSignal(dict, pd.DataFrame, list, dict)
 
     def __init__(self, filename):
+        super().__init__()
         self.filename = filename
 
     def run(self):
@@ -65,6 +65,7 @@ class LoadClusterWorker(QtCore.QThread):
         encoded = ''.join(prop.value for prop in wb.custom_doc_props.props)
         data = pickle.loads(base64.b64decode(encoded))
         #return data['cluster_map'], data['msa'], data['low_entropy'], data['column_map']
+        self.finished.emit(data['cluster_map'], data['msa'], data['low_entropy'], data['column_map'])
 
 
 class Ui_MainWindow(QtWidgets.QMainWindow):
@@ -368,17 +369,14 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         xls_file = QFileDialog.getOpenFileName(self, "Load cluster data from Excel", os.getenv('HOME'), 'Excel (*.xlsx)')[0]
         print(f"Loading cluster data from {xls_file}... ", end='')
 
-        self.load_thread = QtCore.QThread()
-        self.load_worker = LoadClusterWorker(lambda: read_xls)
-        self.load_worker.moveToThread(self.thread)
-        self.load_thread.started.connect(self.load_worker.run)
-        self.load_thread.finished.connect(self.load_cluster_data_finished)
+        self.load_cluster_worker = LoadClusterWorker(xls_file)
+        self.load_cluster_worker.finished.connect(self.load_cluster_data_finished)
+        self.load_cluster_worker.start()
 
-    def load_cluster_data_finished(self):
-        print('done')
-        # self.cluster_map, self.merged_msa, self.low_entropy, self.column_map = read_xls(xls_file)
-        # self.w = ApplicationWindow(self.cluster_map, self.merged_msa, self.low_entropy, self.column_map)
-        # self.w.show()
+    def load_cluster_data_finished(self, cluster_map, msa, low_entropy, column_map):
+        print("done")
+        self.w = ApplicationWindow(cluster_map, msa, low_entropy, column_map)
+        self.w.show()
 
     def export_to_csv(self):
         file = QFileDialog.getSaveFileName()
