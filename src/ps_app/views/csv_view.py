@@ -1,24 +1,22 @@
 import os
-import csv
 from PyQt5 import QtWidgets
 import openpyxl
+import pickle
+import base64
 
 
 class ClusterData(QtWidgets.QTableWidget):
-    def __init__(self, path, data, low_entropy):
+    def __init__(self, cluster_map, msa, low_entropy, column_map):
         super().__init__()
         self.setRowCount(0)
         self.setColumnCount(3)
-        self.cluster_map = path
-        self.data = data
+        self.cluster_map = cluster_map
+        self.msa = msa
         self.low_entropy = low_entropy
-        if type(self.cluster_map) is dict:
-            file = [[str(k), str(v[0]), str(v[1])] for k, v in self.cluster_map.items()]
-            file.insert(0, ['Cluster', 'SR Mode', 'Discovered'])
-        else:
-            data = open(self.cluster_map)
-            file = csv.reader(data)
-            print(file)
+        self.column_map = column_map
+
+        file = [[str(k), str(v[0]), str(v[1])] for k, v in self.cluster_map.items()]
+        file.insert(0, ['Cluster', 'SR Mode', 'Discovered'])
 
         for row_data in file:
             row = self.rowCount()
@@ -46,10 +44,10 @@ class ClusterData(QtWidgets.QTableWidget):
                         row_data.append('')
                 ws.append(row_data)
 
-            if self.data is not None:
+            if self.msa is not None:
                 # Entropy Sheet
                 if self.low_entropy is not None:
-                    low_entropy_res = self.data[self.low_entropy]
+                    low_entropy_res = self.msa[self.low_entropy]
                     entropy_sheet = wb.create_sheet(title="Low Entropy")
                     entropy_sheet.append(low_entropy_res.columns.to_list())
                     for index, row in low_entropy_res.iterrows():
@@ -80,7 +78,7 @@ class ClusterData(QtWidgets.QTableWidget):
                         sheet.cell(row=1, column=start_column + n, value='')
 
                         # Insert values
-                        df_list = [self.data[column] for column in p]
+                        df_list = [self.msa[column] for column in p]
                         max_len = max([len(df) for df in df_list])
                         for row_idx in range(max_len):
                             for i, df in enumerate(df_list):
@@ -88,6 +86,13 @@ class ClusterData(QtWidgets.QTableWidget):
                                 sheet.cell(row=row_idx+2, column=start_column + i, value=value)
                             sheet.cell(row=row_idx+2, column=start_column + len(p), value='')
 
+            serialized = pickle.dumps({'cluster_map': self.cluster_map, 'msa': self.msa, 'low_entropy':
+                                       self.low_entropy, 'column_map': self.column_map})
+            encoded = base64.b64encode(serialized).decode('utf-8')
+
+            chunks = [encoded[i:i+255] for i in range(0, len(encoded), 255)]
+            for i, chunk in enumerate(chunks):
+                wb.custom_doc_props.append(openpyxl.packaging.custom.StringProperty(name=f"pcviewer#{i}", value=chunk))
             wb.save(path)
 
 

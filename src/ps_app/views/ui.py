@@ -2,10 +2,14 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtWidgets import QFileDialog, QStyle
 from ps_app.views.tree_view import ApplicationWindow
+from ps_app.views.csv_view import read_xls
 import sys
 import psicalc as pc
 import pandas as pd
 import os
+import openpyxl
+import pickle
+import base64
 
 pd.set_option('future.no_silent_downcasting', True)
 
@@ -29,7 +33,6 @@ class Worker(QtCore.QThread):
         QtCore.QThread.__init__(self, parent)
         self.exiting = False
         self.setTerminationEnabled()
-        self.cluster_data = dict()
         self.spread = None
         self.merged_data = None
         self.entropy = None
@@ -40,8 +43,8 @@ class Worker(QtCore.QThread):
         return
 
     def run(self):
-        self.cluster_data = pc.find_clusters(self.spread, self.merged_data, "pairwise", self.entropy, self.use_esp)
-        self.clusterSignal.emit(self.cluster_data)
+        cluster_data = pc.find_clusters(self.spread, self.merged_data, "pairwise", self.entropy, self.use_esp)
+        self.clusterSignal.emit(cluster_data)
 
     def start_proc(self, spread,  merged_data, entropy, use_esp):
         self.spread = spread
@@ -49,6 +52,19 @@ class Worker(QtCore.QThread):
         self.entropy = entropy
         self.use_esp = use_esp
         self.start()
+
+
+class LoadClusterWorker(QtCore.QThread):
+    finished = QtCore.pyqtSignal()
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def run(self):
+        wb = openpyxl.load_workbook(self.filename)
+        encoded = ''.join(prop.value for prop in wb.custom_doc_props.props)
+        data = pickle.loads(base64.b64decode(encoded))
+        #return data['cluster_map'], data['msa'], data['low_entropy'], data['column_map']
 
 
 class Ui_MainWindow(QtWidgets.QMainWindow):
@@ -67,7 +83,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.files = list()
         self.labels = list()
         self.original_data = list()
-        self.merged_data = pd.DataFrame()
+        self.merged_msa = pd.DataFrame()
         self.column_map = dict()
         self.low_entropy = None
 
@@ -202,7 +218,6 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
         self.pushButton_2.setText(_translate("MainWindow", "Load Cluster Data"))
         self.pushButton_2.clicked.connect(self.load_cluster_data)
-        self.pushButton_2.setEnabled(False)
 
         self.espBox.setText(_translate("MainWindow", "Use epsilon"))
 
@@ -266,7 +281,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
         self.insert_to_window(data)
 
-        self.merged_data = pc.merge_sequences(data, self.labels)
+        self.merged_msa = pc.merge_sequences(data, self.labels)
 
     def horizontalSlider_handler(self):
         self.label_6.setText(str(self.horizontalSlider.value()))
@@ -350,12 +365,25 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
             self.textBrowser.insertPlainText(args)
 
     def load_cluster_data(self):
-        pass
+        xls_file = QFileDialog.getOpenFileName(self, "Load cluster data from Excel", os.getenv('HOME'), 'Excel (*.xlsx)')[0]
+        print(f"Loading cluster data from {xls_file}... ", end='')
+
+        self.load_thread = QtCore.QThread()
+        self.load_worker = LoadClusterWorker(lambda: read_xls)
+        self.load_worker.moveToThread(self.thread)
+        self.load_thread.started.connect(self.load_worker.run)
+        self.load_thread.finished.connect(self.load_cluster_data_finished)
+
+    def load_cluster_data_finished(self):
+        print('done')
+        # self.cluster_map, self.merged_msa, self.low_entropy, self.column_map = read_xls(xls_file)
+        # self.w = ApplicationWindow(self.cluster_map, self.merged_msa, self.low_entropy, self.column_map)
+        # self.w.show()
 
     def export_to_csv(self):
         file = QFileDialog.getSaveFileName()
         save_file = str(file[0])
-        self.merged_data.to_csv(save_file, index=True, header=True)
+        self.merged_msa.to_csv(save_file, index=True, header=True)
 
     def normalOutputWritten(self, text):
         cursor = self.textEdit.textCursor()
@@ -374,7 +402,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.entropy = self.entropySpinBox.value()
         # I believe this essentially needs to be intialized
         # and sent as data to a thread. No idea why I did it this way :/
-        self.thread.start_proc(self.spread, self.merged_data, self.entropy, self.espBox.isChecked())
+        self.thread.start_proc(self.spread, self.merged_msa, self.entropy, self.espBox.isChecked())
 
     def stop_process(self):
         """Halts the current process, returns the dictionary as is,
@@ -384,10 +412,8 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
     def return_dict(self, r_dict):
         self.low_entropy = r_dict["low_entropy_sites"]
         del r_dict["low_entropy_sites"]
-
         self.column_map = r_dict["column_map"]
         del r_dict["column_map"]
-
         self.cluster_map = r_dict
 
     def returnUi(self):
@@ -395,7 +421,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.pushButton_4.setText("Submit")
         self.pushButton_4.clicked.disconnect()
         self.pushButton_4.clicked.connect(self.submit_and_run)
-        self.w = ApplicationWindow(self.cluster_map, self.merged_data, self.low_entropy, self.column_map)
+        self.w = ApplicationWindow(self.cluster_map, self.merged_msa, self.low_entropy, self.column_map)
         self.w.show()
 
 

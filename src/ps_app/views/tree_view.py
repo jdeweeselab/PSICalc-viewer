@@ -1,15 +1,12 @@
 from PyQt5 import QtCore, QtWidgets, QtGui
 from PyQt5.QtWidgets import QAction
-if QtCore.qVersion() >= "5.":
-    from matplotlib.backends.backend_qt5agg import (
-        FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
-else:
-    from matplotlib.backends.backend_qt4agg import (
-        FigureCanvas, NavigationToolbar2QT as NavigationToolbar)
+from matplotlib.backends.backend_qt5agg import (
+    FigureCanvas,
+    NavigationToolbar2QT as NavigationToolbar
+)
 from ps_app.views.csv_view import ClusterData
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-import csv
 import networkx as nx
 import numpy as np
 from networkx.drawing.nx_agraph import graphviz_layout
@@ -18,19 +15,14 @@ from matplotlib import pyplot as plt
 
 class ApplicationWindow(QtWidgets.QMainWindow):
     """Tree Window View"""
-    def __init__(self, path, data, low_entropy, column_map):
+    def __init__(self, cluster_map, msa, low_entropy, column_map):
         super().__init__()
-        self.path = path
-        self.data = data
-        self.column_map = column_map
+        self.cluster_map = cluster_map
+        self.msa = msa
         self.low_entropy = low_entropy
+        self.column_map = column_map
 
-        if type(self.path) is dict:
-            self.lines = [[str(k), str(v[0]), str(v[1])] for k, v in self.path.items()]
-        else:
-            with open(self.path) as f:
-                self.lines = list(csv.reader(f))
-            self.lines = self.lines[1:]  # ignores header
+        self.lines = [[str(k), str(v[0]), str(v[1])] for k, v in self.cluster_map.items()]
 
         self.fig = plt.figure(figsize=(5, 5))
         self.canvas = FigureCanvas(self.fig)
@@ -41,13 +33,13 @@ class ApplicationWindow(QtWidgets.QMainWindow):
         self.tabs = QtWidgets.QTabWidget()
         layout = QtWidgets.QVBoxLayout(self._main)
 
-        self.table = ClusterData(self.path, self.data, self.low_entropy)
+        self.table = ClusterData(self.cluster_map, self.msa, self.low_entropy, self.column_map)
         self.tabs.addTab(self.canvas, "Tree View")
         self.tabs.addTab(self.table, "Cluster Data")
         layout.addWidget(self.tabs)
         self.nav_bar = self.addToolBar(NavigationToolbar(self.canvas, self))
 
-        save_file_action = QAction(QtGui.QIcon(":icons/excel_logo.png"), 'Save CSV', self)
+        save_file_action = QAction(QtGui.QIcon(":icons/excel_logo.png"), 'Save Excel', self)
         save_file_action.triggered.connect(self.table.save_sheet)
         self.toolbar = self.addToolBar('Data')
         self.toolbar.addAction(save_file_action)
