@@ -10,7 +10,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 import networkx as nx
 import numpy as np
 from networkx.drawing.nx_agraph import graphviz_layout
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 
 class ApplicationWindow(QtWidgets.QMainWindow):

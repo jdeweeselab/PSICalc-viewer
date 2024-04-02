@@ -64,7 +64,6 @@ class LoadClusterWorker(QtCore.QThread):
         wb = openpyxl.load_workbook(self.filename)
         encoded = ''.join(prop.value for prop in wb.custom_doc_props.props)
         data = pickle.loads(base64.b64decode(encoded))
-        #return data['cluster_map'], data['msa'], data['low_entropy'], data['column_map']
         self.finished.emit(data['cluster_map'], data['msa'], data['low_entropy'], data['column_map'])
 
 
@@ -272,6 +271,9 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         """
 
         data = self.original_data.copy()
+        if not data:
+            return
+
         if self.checkBox.isChecked():
             data = [pc.deweese_schema(df, 'None') for df in data]
         else:
@@ -286,7 +288,6 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
     def horizontalSlider_handler(self):
         self.label_6.setText(str(self.horizontalSlider.value()))
-        self.insert_to_window("Loading...")
 
     def horizontalSlider_handler_2(self):
         self.apply_transforms()
@@ -367,8 +368,12 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
     def load_cluster_data(self):
         xls_file = QFileDialog.getOpenFileName(self, "Load cluster data from Excel", os.getenv('HOME'), 'Excel (*.xlsx)')[0]
+        if not xls_file:
+            return
+
         print(f"Loading cluster data from {xls_file}... ", end='')
 
+        self.widget_2.setEnabled(False)
         self.load_cluster_worker = LoadClusterWorker(xls_file)
         self.load_cluster_worker.finished.connect(self.load_cluster_data_finished)
         self.load_cluster_worker.start()
@@ -377,6 +382,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         print("done")
         self.w = ApplicationWindow(cluster_map, msa, low_entropy, column_map)
         self.w.show()
+        self.widget_2.setEnabled(True)
 
     def export_to_csv(self):
         file = QFileDialog.getSaveFileName()
