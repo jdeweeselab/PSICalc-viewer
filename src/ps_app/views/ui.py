@@ -127,6 +127,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.espBox = QtWidgets.QCheckBox(self.widget_2)
         self.espBox.setGeometry(QtCore.QRect(220, 149, 100, 32))
         self.espBox.setObjectName("espBox")
+        self.espBox.setChecked(True)
 
         self.checkBox = QtWidgets.QCheckBox(self.widget_2)
         self.checkBox.setGeometry(QtCore.QRect(20, 190, 301, 41))
