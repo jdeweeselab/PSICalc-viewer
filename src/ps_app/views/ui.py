@@ -350,8 +350,8 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
                     self.textBrowser.insertPlainText("File: " + self.files[i] + "\n" +
                                                      "Columns:  " + str(len(args[i].columns)) + "\n" +
                                                      "Sequences: " + str(len(args[i].index)) + "\n" +
-                                                     "Labels: " + label + str(args[0].columns[0]) + "..."
-                                                     + label + str(args[0].columns[-1])
+                                                     "Labels: " + label + str(args[i].columns[0]) + "..."
+                                                     + label + str(args[i].columns[-1])
                                                      + "\n\n")
             except IndexError:
                 self.insert_to_window("Not enough columns to use.")
