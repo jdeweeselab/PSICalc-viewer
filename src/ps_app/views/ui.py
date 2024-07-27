@@ -35,21 +35,19 @@ class Worker(QtCore.QThread):
         self.spread = None
         self.merged_data = None
         self.entropy = None
-        self.use_esp = False
 
     def get_state(self):
         pc.return_dict_state()
         return
 
     def run(self):
-        cluster_data = pc.find_clusters(self.spread, self.merged_data, "pairwise", self.entropy, self.use_esp)
+        cluster_data = pc.find_clusters(self.spread, self.merged_data, "pairwise", self.entropy)
         self.clusterSignal.emit(cluster_data)
 
-    def start_proc(self, spread,  merged_data, entropy, use_esp):
+    def start_proc(self, spread,  merged_data, entropy):
         self.spread = spread
         self.merged_data = merged_data
         self.entropy = entropy
-        self.use_esp = use_esp
         self.start()
 
 
@@ -121,20 +119,15 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.process.readyReadStandardOutput.connect(self.onReadyReadStandardOutput)
 
         self.pushButton_2 = QtWidgets.QPushButton(self.widget_2)
-        self.pushButton_2.setGeometry(QtCore.QRect(10, 150, 191, 32))
+        self.pushButton_2.setGeometry(QtCore.QRect(50, 150, 191, 32))
         self.pushButton_2.setObjectName("pushButton_2")
 
-        self.espBox = QtWidgets.QCheckBox(self.widget_2)
-        self.espBox.setGeometry(QtCore.QRect(220, 149, 100, 32))
-        self.espBox.setObjectName("espBox")
-        self.espBox.setChecked(True)
-
         self.checkBox = QtWidgets.QCheckBox(self.widget_2)
-        self.checkBox.setGeometry(QtCore.QRect(20, 190, 301, 41))
+        self.checkBox.setGeometry(QtCore.QRect(40, 190, 301, 41))
         self.checkBox.setObjectName("checkBox")
 
         self.horizontalSlider = QtWidgets.QSlider(self.widget_2)
-        self.horizontalSlider.setGeometry(QtCore.QRect(30, 420, 181, 20))
+        self.horizontalSlider.setGeometry(QtCore.QRect(60, 420, 181, 20))
         self.horizontalSlider.setOrientation(QtCore.Qt.Horizontal)
         self.horizontalSlider.setObjectName("horizontalSlider")
 
@@ -156,22 +149,22 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.entropySpinBox.setObjectName("entropySpinBox")
 
         self.label_2 = QtWidgets.QLabel(self.widget_2)
-        self.label_2.setGeometry(QtCore.QRect(100, 235, 21, 16))
+        self.label_2.setGeometry(QtCore.QRect(130, 235, 21, 16))
         self.label_2.setObjectName("label_2")
         self.label_3 = QtWidgets.QLabel(self.widget_2)
-        self.label_3.setGeometry(QtCore.QRect(20, 260, 331, 31))
+        self.label_3.setGeometry(QtCore.QRect(40, 260, 331, 31))
         self.label_3.setObjectName("label_3")
         self.label_4 = QtWidgets.QLabel(self.widget_2)
-        self.label_4.setGeometry(QtCore.QRect(50, 290, 191, 16))
+        self.label_4.setGeometry(QtCore.QRect(70, 290, 191, 16))
         self.label_4.setObjectName("label_4")
         self.label_5 = QtWidgets.QLabel(self.widget_2)
-        self.label_5.setGeometry(QtCore.QRect(30, 370, 291, 16))
+        self.label_5.setGeometry(QtCore.QRect(50, 370, 291, 16))
         self.label_5.setObjectName("label_5")
         self.label_6 = QtWidgets.QLabel(self.widget_2)
-        self.label_6.setGeometry(QtCore.QRect(100, 440, 16, 21))
+        self.label_6.setGeometry(QtCore.QRect(140, 440, 16, 21))
         self.label_6.setObjectName("label_6")
         self.label_7 = QtWidgets.QLabel(self.widget_2)
-        self.label_7.setGeometry(QtCore.QRect(120, 440, 31, 21))
+        self.label_7.setGeometry(QtCore.QRect(160, 440, 31, 21))
         self.label_7.setObjectName("label_7")
         self.label_8 = QtWidgets.QLabel(self.widget_2)
         self.label_8.setGeometry(QtCore.QRect(60, 390, 141, 16))
@@ -219,8 +212,6 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
 
         self.pushButton_2.setText(_translate("MainWindow", "Load Cluster Data"))
         self.pushButton_2.clicked.connect(self.load_cluster_data)
-
-        self.espBox.setText(_translate("MainWindow", "Use epsilon"))
 
         self.checkBox.setText(_translate("MainWindow", "Label Using First Row Mapping"))
         self.checkBox.stateChanged.connect(self.if_button_checked)
@@ -359,8 +350,8 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
                     self.textBrowser.insertPlainText("File: " + self.files[i] + "\n" +
                                                      "Columns:  " + str(len(args[i].columns)) + "\n" +
                                                      "Sequences: " + str(len(args[i].index)) + "\n" +
-                                                     "Labels: " + label + str(args[0].columns[0]) + "..."
-                                                     + label + str(args[0].columns[-1])
+                                                     "Labels: " + label + str(args[i].columns[0]) + "..."
+                                                     + label + str(args[i].columns[-1])
                                                      + "\n\n")
             except IndexError:
                 self.insert_to_window("Not enough columns to use.")
@@ -407,7 +398,7 @@ class Ui_MainWindow(QtWidgets.QMainWindow):
         self.entropy = self.entropySpinBox.value()
         # I believe this essentially needs to be intialized
         # and sent as data to a thread. No idea why I did it this way :/
-        self.thread.start_proc(self.spread, self.merged_msa, self.entropy, self.espBox.isChecked())
+        self.thread.start_proc(self.spread, self.merged_msa, self.entropy)
 
     def stop_process(self):
         """Halts the current process, returns the dictionary as is,

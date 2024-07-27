@@ -2,7 +2,7 @@ PyQt5==5.15.10
 networkx==3.2.1
 matplotlib==3.8.3
 pygraphviz==1.12
-psicalc==0.6.2
+psicalc==0.6.3
 openpyxl==3.1.2
 pandas==2.2.1
 scikit-learn==1.4.1.post1
